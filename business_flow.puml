@@ -1,0 +1,95 @@
+@startuml Vitizen Business Flow
+
+skinparam ActivityBackgroundColor LightBlue
+skinparam ActivityBorderColor Blue
+skinparam ArrowColor DarkBlue
+skinparam ActivityDiamondBackgroundColor LightYellow
+skinparam ActivityDiamondBorderColor Orange
+
+|Utilisateur|
+start
+:Ouvre l'application;
+
+|#AntiqueWhite|Application|
+:Affiche SplashScreen;
+if (Session existante?) then (oui)
+  :Vérifier l'état de l'authentification;
+  if (Utilisateur connecté?) then (oui)
+    :Redirection vers HomePage;
+  else (non)
+    :Redirection vers SignInScreen;
+  endif
+else (non)
+  :Redirection vers SignInScreen;
+endif
+
+|Utilisateur|
+if (A un compte?) then (oui)
+  :Saisit email et mot de passe;
+  |Application|
+  :Tentative de connexion;
+  if (Identifiants valides?) then (oui)
+    if (Email vérifié?) then (oui)
+      :Connexion réussie;
+      :Afficher HomePage;
+    else (non)
+      :Envoyer email de vérification;
+      :Afficher message d'erreur\n"Vérifiez votre email";
+      :Déconnexion automatique;
+    endif
+  else (non)
+    :Afficher message d'erreur;
+    :Retour à SignInScreen;
+  endif
+
+else (non)
+  :Clic sur "Créer un compte";
+  |Application|
+  :Afficher SignUpScreen;
+  
+  |Utilisateur|
+  :Remplir formulaire d'inscription
+  - Nom
+  - Email
+  - Mot de passe
+  - Téléphone
+  - Accepter RGPD;
+  
+  |Application|
+  :Validation des données;
+  if (Données valides?) then (oui)
+    :Créer le compte;
+    :Envoyer email de vérification;
+    :Afficher message de succès;
+    :Redirection vers SignInScreen;
+  else (non)
+    :Afficher message d'erreur;
+    :Rester sur SignUpScreen;
+  endif
+endif
+
+|Utilisateur|
+if (Sur HomePage?) then (oui)
+  :Peut voir ses informations
+  - Email
+  - Nom
+  - Rôle;
+  
+  :Peut se déconnecter;
+  |Application|
+  if (Déconnexion?) then (oui)
+    :Effacer la session;
+    :Redirection vers SignInScreen;
+  endif
+endif
+
+stop
+
+legend right
+  |= Couleur |= Signification |
+  |<#LightBlue>| Actions système |
+  |<#LightYellow>| Décisions |
+  |<#White>| Actions utilisateur |
+endlegend
+
+@enduml 

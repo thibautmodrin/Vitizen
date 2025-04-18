@@ -1,0 +1,106 @@
+@startuml
+skinparam backgroundColor white
+skinparam handwritten false
+skinparam packageStyle rectangle
+skinparam componentStyle uml2
+skinparam arrowColor #666666
+skinparam packageBackgroundColor #F5F5F5
+skinparam packageBorderColor #666666
+
+' Définition des acteurs
+actor Utilisateur #FFD700
+
+' Définition des couches
+package "UI Layer" #E6F3FF {
+    [SignInScreen] as SignIn #FFFFFF
+    [HomeScreen] as Home #FFFFFF
+    [SignUpScreen] as SignUp #FFFFFF
+    [EmailVerificationScreen] as EmailVerif #FFFFFF
+}
+
+package "ViewModel Layer" #E6FFE6 {
+    [SignInViewModel] as SignInVM #FFFFFF
+    [HomeViewModel] as HomeVM #FFFFFF
+    [SignUpViewModel] as SignUpVM #FFFFFF
+}
+
+package "Domain Layer" #FFE6E6 {
+    [SignInUseCase] as SignInUC #FFFFFF
+    [SignUpUseCase] as SignUpUC #FFFFFF
+    [VerifyEmailUseCase] as VerifyEmailUC #FFFFFF
+}
+
+package "Data Layer" #E6E6FF {
+    [AuthRepository] as AuthRepo #FFFFFF
+    [UserRepository] as UserRepo #FFFFFF
+}
+
+package "Services Layer" #FFFFE6 {
+    [SessionManager] as SessionMgr #FFFFFF
+    [SecureCredentialsManager] as SecureMgr #FFFFFF
+    [ConnectivityChecker] as ConnChecker #FFFFFF
+}
+
+' Flux de connexion (en bleu)
+== Connexion ==
+Utilisateur -> SignIn: 1. Saisit identifiants
+SignIn -> SignInVM: 2. Envoie identifiants
+SignInVM -> SignInUC: 3. Traite la demande
+SignInUC -> ConnChecker: 4. Vérifie connexion
+SignInUC -> SecureMgr: 5. Vérifie identifiants sauvegardés
+SignInUC -> AuthRepo: 6. Authentifie en ligne
+AuthRepo -> SessionMgr: 7. Sauvegarde session
+SessionMgr -> SecureMgr: 8. Sauvegarde identifiants
+SignInUC --> SignInVM: 9. Retourne résultat
+SignInVM --> SignIn: 10. Affiche résultat
+SignIn -> Home: 11. Navigation si succès
+
+' Flux d'inscription (en vert)
+== Inscription ==
+Utilisateur -> SignUp: 1. Saisit informations
+SignUp -> SignUpVM: 2. Envoie données
+SignUpVM -> SignUpUC: 3. Traite l'inscription
+SignUpUC -> AuthRepo: 4. Crée compte
+AuthRepo -> UserRepo: 5. Sauvegarde données utilisateur
+SignUpUC --> SignUpVM: 6. Retourne résultat
+SignUpVM --> SignUp: 7. Affiche résultat
+SignUp -> EmailVerif: 8. Navigation si succès
+
+' Flux de vérification email (en rouge)
+== Vérification Email ==
+Utilisateur -> EmailVerif: 1. Demande vérification
+EmailVerif -> VerifyEmailUC: 2. Traite la demande
+VerifyEmailUC -> AuthRepo: 3. Vérifie statut email
+AuthRepo --> VerifyEmailUC: 4. Retourne statut
+VerifyEmailUC --> EmailVerif: 5. Affiche résultat
+EmailVerif -> Home: 6. Navigation si vérifié
+
+' Flux de déconnexion (en orange)
+== Déconnexion ==
+Utilisateur -> Home: 1. Demande déconnexion
+Home -> HomeVM: 2. Traite la demande
+HomeVM -> SessionMgr: 3. Supprime session
+SessionMgr -> SecureMgr: 4. Supprime identifiants
+HomeVM --> Home: 5. Confirme déconnexion
+Home -> SignIn: 6. Navigation vers écran connexion
+
+' Flux de chargement données (en violet)
+== Chargement Données ==
+Home -> HomeVM: 1. Demande données
+HomeVM -> SessionMgr: 2. Récupère session
+SessionMgr -> UserRepo: 3. Récupère données
+UserRepo --> HomeVM: 4. Retourne données
+HomeVM --> Home: 5. Affiche données
+
+' Légende
+legend right
+  |= Couleur |= Signification |
+  |<#E6F3FF>| UI Layer |
+  |<#E6FFE6>| ViewModel Layer |
+  |<#FFE6E6>| Domain Layer |
+  |<#E6E6FF>| Data Layer |
+  |<#FFFFE6>| Services Layer |
+  |<#FFD700>| Utilisateur |
+endlegend
+
+@enduml 

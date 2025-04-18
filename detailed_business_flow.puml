@@ -1,0 +1,195 @@
+@startuml Vitizen Detailed Business Flow
+
+' Style
+skinparam class {
+    BackgroundColor LightBlue
+    ArrowColor Blue
+    BorderColor Navy
+}
+skinparam note {
+    BackgroundColor LightYellow
+    BorderColor Orange
+}
+
+' Classes principales
+package "UI Layer" {
+    class MainActivity {
+        + onCreate()
+        + setContent()
+    }
+
+    class SplashScreen {
+        + checkAuthState()
+        + onNavigateToSignIn()
+        + onNavigateToHome()
+    }
+
+    class SignInScreen {
+        - email: String
+        - password: String
+        + onNavigateToSignUp()
+        + onNavigateToHome()
+    }
+
+    class SignUpScreen {
+        - name: String
+        - email: String
+        - password: String
+        - telephone: String
+        - rgpdAccepted: Boolean
+        + onNavigateToSignIn()
+    }
+
+    class HomePage {
+        + onNavigateToSignIn()
+        + displayUserInfo()
+        + handleLogout()
+    }
+}
+
+package "ViewModel Layer" {
+    class SplashViewModel {
+        - _authState: MutableStateFlow<AuthState>
+        - _uiEvent: MutableStateFlow<UiEvent>
+        + checkAuthState()
+        + clearUiEvent()
+    }
+
+    class SignInViewModel {
+        - _authState: MutableStateFlow<AuthState>
+        - _uiEvent: MutableStateFlow<UiEvent>
+        + signIn(email: String, password: String)
+        + clearUiEvent()
+    }
+
+    class SignUpViewModel {
+        - _authState: MutableStateFlow<AuthState>
+        - _uiEvent: MutableStateFlow<UiEvent>
+        - _user: MutableStateFlow<User>
+        + signUp(email: String, password: String, name: String)
+        + clearUiEvent()
+    }
+
+    class HomeViewModel {
+        - _user: MutableStateFlow<User>
+        - _uiEvent: MutableStateFlow<UiEvent>
+        + loadUser()
+        + logout()
+    }
+}
+
+package "Domain Layer" {
+    interface AuthRepository {
+        + signIn(email: String, password: String): Flow<Result<User>>
+        + signUp(email: String, password: String, name: String): Flow<Result<User>>
+        + signOut(): Flow<Result<Unit>>
+        + sendEmailVerification(): Flow<Result<Unit>>
+        + getCurrentUser(): User?
+        + logout()
+    }
+
+    class SignInUseCase {
+        - authRepository: AuthRepository
+        + invoke(email: String, password: String): Flow<Result<User>>
+        + validateInput(credentials: Credentials): Boolean
+    }
+
+    class SignUpUseCase {
+        - authRepository: AuthRepository
+        + invoke(email: String, password: String, name: String): Flow<Result<User>>
+        + validateFields(user: User, credentials: Credentials): Boolean
+    }
+
+    class User {
+        - uid: String
+        - name: String
+        - email: String
+        - isEmailVerified: Boolean
+    }
+}
+
+package "Services Layer" {
+    class FirebaseAuthService {
+        + signIn(email: String, password: String): Result<FirebaseUser>
+        + signUp(email: String, password: String): Result<FirebaseUser>
+        + sendEmailVerification(): Result<Unit>
+        + getCurrentUser(): FirebaseUser?
+        + signOut()
+    }
+
+    class EmailVerifier {
+        + sendEmailVerification()
+        + isEmailVerified(): Boolean
+        + isValidEmail(email: String): Boolean
+    }
+
+    class SessionManager {
+        + saveSession(user: FirebaseUser)
+        + clearSession()
+        + getUid(): String?
+    }
+}
+
+' Relations entre les composants
+MainActivity --> SplashScreen : démarre
+SplashScreen --> SplashViewModel : utilise
+SignInScreen --> SignInViewModel : utilise
+SignUpScreen --> SignUpViewModel : utilise
+HomePage --> HomeViewModel : utilise
+
+SignInViewModel --> SignInUseCase : utilise
+SignUpViewModel --> SignUpUseCase : utilise
+SignInUseCase --> AuthRepository : utilise
+SignUpUseCase --> AuthRepository : utilise
+
+AuthRepository --> FirebaseAuthService : utilise
+AuthRepository --> EmailVerifier : utilise
+AuthRepository --> SessionManager : utilise
+
+' Notes pour les flux principaux
+note right of SplashScreen
+  1. Vérifie la session au démarrage
+  2. Redirige vers la bonne page
+end note
+
+note right of SignInScreen
+  1. Collecte les identifiants
+  2. Vérifie l'email
+  3. Gère la connexion
+end note
+
+note right of SignUpScreen
+  1. Collecte les informations
+  2. Valide les données
+  3. Envoie l'email de vérification
+end note
+
+note right of HomePage
+  1. Affiche les infos utilisateur
+  2. Gère la déconnexion
+end note
+
+' États et événements
+package "States & Events" {
+    enum AuthState {
+        Initial
+        Loading
+        Success
+        Error
+    }
+
+    enum UiEvent {
+        NavigateToHome
+        NavigateToSignIn
+        NavigateToSignUp
+        ShowError
+        ShowSuccess
+    }
+}
+
+' Flux de données
+SignInViewModel ..> AuthState : émet
+SignUpViewModel ..> AuthState : émet
+HomeViewModel ..> UiEvent : émet
+
+@enduml 

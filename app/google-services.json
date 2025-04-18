@@ -1,0 +1,121 @@
+{
+  "project_info": {
+    "project_number": "66032472244",
+    "project_id": "vitizen-9f86c",
+    "storage_bucket": "vitizen-9f86c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:66032472244:android:2aee26b440c52c50f507e1",
+        "android_client_info": {
+          "package_name": "com.example.vitizen"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "66032472244-ulvsii1nqhutm60nigrr8gj3rpgr8563.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vitizen",
+            "certificate_hash": "d0b38f224c5b0637fd5cc1772a2da84595548629"
+          }
+        },
+        {
+          "client_id": "66032472244-0ia1ibu78eu7s1jj3o6rrfabpfi3v6e1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKmHgiboEQwyfeeuf3aD-aY5DeYXvILOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "66032472244-0ia1ibu78eu7s1jj3o6rrfabpfi3v6e1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:66032472244:android:045f1c31e5b7749df507e1",
+        "android_client_info": {
+          "package_name": "com.vitizen.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "66032472244-1qr48j68np2d0dobfsb5ht59mi0mm1qj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vitizen.app",
+            "certificate_hash": "d0b38f224c5b0637fd5cc1772a2da84595548629"
+          }
+        },
+        {
+          "client_id": "66032472244-0ia1ibu78eu7s1jj3o6rrfabpfi3v6e1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKmHgiboEQwyfeeuf3aD-aY5DeYXvILOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "66032472244-0ia1ibu78eu7s1jj3o6rrfabpfi3v6e1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:66032472244:android:8b9440a4095dda09f507e1",
+        "android_client_info": {
+          "package_name": "com.vitizen.auth"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "66032472244-co3m4fliogio89eo4arimh1oiib3lggn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vitizen.auth",
+            "certificate_hash": "d0b38f224c5b0637fd5cc1772a2da84595548629"
+          }
+        },
+        {
+          "client_id": "66032472244-0ia1ibu78eu7s1jj3o6rrfabpfi3v6e1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKmHgiboEQwyfeeuf3aD-aY5DeYXvILOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "66032472244-0ia1ibu78eu7s1jj3o6rrfabpfi3v6e1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

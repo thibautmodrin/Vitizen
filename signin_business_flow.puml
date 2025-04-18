@@ -1,0 +1,98 @@
+@startuml SignIn Business Flow
+
+' Style
+skinparam activity {
+    BackgroundColor LightBlue
+    BorderColor Navy
+}
+skinparam arrow {
+    Color Blue
+}
+
+' Définition des activités
+start
+:SignInScreen;
+
+' Processus de connexion
+partition "Processus de Connexion" {
+    :Saisie email et mot de passe;
+    
+    if (Validation des champs?) then (oui)
+        :Appel SignInViewModel;
+        :Vérification Firebase;
+        
+        if (Authentification réussie?) then (oui)
+            if (Email vérifié?) then (oui)
+                :Récupération données utilisateur;
+                :Mise à jour UI;
+                :Redirection HomePage;
+            else (non)
+                :Envoi email de vérification;
+                :Affichage message utilisateur;
+                :Déconnexion automatique;
+                :Redirection SignInScreen;
+            endif
+        else (non)
+            :Gestion erreur Firebase;
+            :Affichage message erreur;
+            :Retour SignInScreen;
+        endif
+    else (non)
+        :Affichage erreurs validation;
+        :Retour saisie;
+    endif
+}
+
+' Processus de création de compte
+partition "Processus de Création de Compte" {
+    if (Nouvel utilisateur?) then (oui)
+        :Redirection SignUpScreen;
+        :Saisie informations utilisateur;
+        :Validation RGPD;
+        
+        if (Validation réussie?) then (oui)
+            :Création compte Firebase;
+            :Envoi email vérification;
+            :Redirection SignInScreen;
+        else (non)
+            :Affichage erreurs validation;
+            :Retour saisie;
+        endif
+    endif
+}
+
+' Gestion des erreurs
+partition "Gestion des Erreurs" {
+    :Détection erreur réseau;
+    ->;
+    :Détection erreur Firebase;
+    ->;
+    :Détection erreur validation;
+    ->;
+    :Affichage messages appropriés;
+}
+
+stop
+
+' ' Notes explicatives
+' note right of SignInScreen
+'   Point d'entrée principal
+'   pour l'authentification
+' end note
+
+' note right of "Processus de Connexion"
+'   Flux principal
+'   d'authentification
+' end note
+
+' note right of "Processus de Création de Compte"
+'   Flux alternatif
+'   pour nouveaux utilisateurs
+' end note
+
+' note right of "Gestion des Erreurs"
+'   Gestion centralisée
+'   des cas d'erreur
+' end note
+
+@enduml 

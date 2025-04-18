@@ -1,0 +1,289 @@
+@startuml AuthArchitectureFinalCorrected
+
+skinparam style strictuml
+skinparam classAttributeIconSize 0
+skinparam defaultTextAlignment left
+skinparam wrapWidth 50
+skinparam maxMessageSize 500
+skinparam shadowing false
+skinparam monochrome false
+skinparam backgroundColor white
+skinparam pageMargin 0
+skinparam pagePadding 0
+skinparam pageExternalColor black
+skinparam pageBorderColor white
+skinparam packagePadding 1000
+
+scale max 2000 width
+scale max 2000 height
+
+top to bottom direction
+
+' Couche UI
+package "UI Layer" {
+  class SignInScreen {
+    + UI form
+    + Google button
+  }
+  class SignUpScreen {
+    + Registration form
+    + Google button
+  }
+  class HomePage {
+    + Display user data (User)
+    + Logout
+  }
+  class SplashScreen {
+    + Shows loader
+    + Observes authState
+  }
+}
+
+' Couche Navigation
+package "Navigation Layer" {
+  class AuthNavigation {
+    + navigateToHome()
+    + navigateToSignUp()
+    + navigateToSignIn()
+    + handleAuthState(state)
+  }
+}
+
+' Couche ViewModel
+package "ViewModel Layer" {
+  class SignInViewModel {
+    + signInWithEmail(credentials)
+    + emits UiEvent
+  }
+  class SignUpViewModel {
+    + registerUser(user, credentials)
+    + emits UiEvent
+  }
+  class GoogleAuthViewModel {
+    + handleGoogleSignInResult(intentData)
+    + emits UiEvent
+  }
+  class SplashViewModel {
+    + checkSession()
+    + authState: StateFlow
+  }
+}
+
+' Couche Domain
+package "Domain Layer" {
+  class User {
+    - uid
+    - name
+    - email
+    - role
+  }
+  class Credentials {
+    - email
+    - password
+  }
+  
+  class SignInUseCase {
+    + invoke(credentials): Result<User>
+    + validateInput(credentials): Boolean
+  }
+  class SignUpUseCase {
+    + invoke(user, credentials): Result<Unit>
+    + validateFields(user, credentials): Boolean
+  }
+}
+
+' Couche Data
+package "Data Layer" {
+  interface AuthRepository {
+    + signInWithEmail(email, password): Result<User>
+    + signInWithGoogle(token): Result<User>
+    + registerUser(user, credentials): Result<Unit>
+    + sendEmailVerification(email): Result<Unit>
+    + isUserRegistered(email): Boolean
+    + getCurrentUserUid(): String?
+    + getCurrentUser(): User?
+    + logout()
+  }
+  class AuthRepositoryImpl {
+    - firebaseAuth
+    - dataStore
+    - userDao
+  }
+}
+
+' Couche Services
+package "Services Layer" {
+  class FirebaseAuth {
+    + signInWithEmailAndPassword()
+    + createUserWithEmailAndPassword()
+    + updateProfile()
+    + signOut()
+  }
+  class RoomDataSource {
+    + getUser()
+    + saveUser()
+  }
+  class UserPreferencesManager {
+    + saveUid()
+    + getUid()
+  }
+  class Logger {
+    + log()
+    + logError()
+  }
+  class EmailVerifier {
+    + sendEmailVerification()
+    + isEmailVerified(): Boolean
+  }
+  class SessionManager {
+    + getUid()
+    + logout()
+  }
+  class ConnectivityChecker {
+    + isConnected(): Boolean
+  }
+  class GoogleAuthService {
+    + getSignInIntent()
+    + handleGoogleResult(intentData): Result<User>
+  }
+}
+
+' Couche DI
+package "Dependency Injection" {
+  class AppModule {
+    @Provides app-wide dependencies
+  }
+  class FirebaseModule {
+    @Provides Firebase services
+  }
+}
+
+' States
+package "States" {
+  class SignInUiState {
+    - email
+    - password
+    - isLoading
+    - errorMessage
+  }
+  class SignUpUiState {
+    - name
+    - email
+    - password
+    - isLoading
+    - errorMessage
+    - telephone
+    - rgpdAccepted
+  }
+  class AuthState {
+    + Idle
+    + Loading
+    + SignInSuccess
+    + SignUpRedirect
+    + SignUpSuccess
+    + Error
+  }
+  class UiEvent {
+    + Navigate
+    + ShowSnackbar
+    + EmailVerificationSent
+  }
+}
+
+' Relations UI -> ViewModel (en bleu)
+SignInScreen -[#blue]-> SignInViewModel : utilise
+SignUpScreen -[#blue]-> SignUpViewModel : utilise
+SplashScreen -[#blue]-> SplashViewModel : utilise
+SignInScreen -[#blue]-> GoogleAuthViewModel : utilise
+SignUpScreen -[#blue]-> GoogleAuthViewModel : utilise
+
+' Relations ViewModel -> States (en vert)
+SignInViewModel -[#green]-> SignInUiState : gère
+SignUpViewModel -[#green]-> SignUpUiState : gère
+SignInViewModel -[#green]-> AuthState : gère
+SignUpViewModel -[#green]-> AuthState : gère
+GoogleAuthViewModel -[#green]-> AuthState : gère
+SplashViewModel -[#green]-> AuthState : gère
+
+' Relations ViewModel -> Events (en violet)
+SignInViewModel -[#purple]-> UiEvent : émet
+SignUpViewModel -[#purple]-> UiEvent : émet
+GoogleAuthViewModel -[#purple]-> UiEvent : émet
+
+' Relations Domain (en orange)
+SignInUseCase -[#orange]-> Credentials : utilise
+SignUpUseCase -[#orange]-> Credentials : utilise
+SignUpUseCase -[#orange]-> User : utilise
+
+' Relations Repository (en rouge)
+AuthRepository <|-[#red]- AuthRepositoryImpl : implémente
+RoomDataSource -[#red]-> HomePage : fournit données
+AuthRepositoryImpl -[#red]-> HomePage : fournit données
+
+' Relations Navigation (en marron)
+AuthNavigation -[#brown]-> SignInScreen : navigue vers
+AuthNavigation -[#brown]-> SignUpScreen : navigue vers
+AuthNavigation -[#brown]-> HomePage : navigue vers
+AuthNavigation -[#brown]-> AuthState : observe
+
+' Relations Injection (en gris)
+AuthRepositoryImpl ..[#gray]..> FirebaseAuth : inject
+AuthRepositoryImpl ..[#gray]..> RoomDataSource : inject
+AuthRepositoryImpl ..[#gray]..> UserPreferencesManager : inject
+AuthRepositoryImpl ..[#gray]..> Logger : inject
+AuthRepositoryImpl ..[#gray]..> EmailVerifier : inject
+AuthRepositoryImpl ..[#gray]..> SessionManager : inject
+
+SignInViewModel ..[#gray]..> SignInUseCase : inject
+SignUpViewModel ..[#gray]..> SignUpUseCase : inject
+GoogleAuthViewModel ..[#gray]..> AuthRepository : inject
+GoogleAuthViewModel ..[#gray]..> GoogleAuthService : inject
+SplashViewModel ..[#gray]..> AuthRepository : inject
+SplashViewModel ..[#gray]..> SessionManager : inject
+SignInUseCase ..[#gray]..> ConnectivityChecker : inject
+SignUpUseCase ..[#gray]..> ConnectivityChecker : inject
+
+' Relations Provides (en cyan)
+AppModule ..[#cyan]..> AuthRepositoryImpl : @Provides
+AppModule ..[#cyan]..> RoomDataSource : @Provides
+AppModule ..[#cyan]..> UserPreferencesManager : @Provides
+AppModule ..[#cyan]..> Logger : @Provides
+AppModule ..[#cyan]..> SignInUseCase : @Provides
+AppModule ..[#cyan]..> SignUpUseCase : @Provides
+AppModule ..[#cyan]..> SessionManager : @Provides
+AppModule ..[#cyan]..> ConnectivityChecker : @Provides
+
+FirebaseModule ..[#cyan]..> FirebaseAuth : @Provides
+FirebaseModule ..[#cyan]..> GoogleAuthService : @Provides
+FirebaseModule ..[#cyan]..> EmailVerifier : @Provides
+
+' Relations Services (en rose)
+GoogleAuthService -[#pink]-> FirebaseAuth : utilise
+EmailVerifier -[#pink]-> FirebaseAuth : utilise
+SessionManager -[#pink]-> UserPreferencesManager : utilise
+SessionManager -[#pink]-> RoomDataSource : utilise
+Logger -[#pink]-> FirebaseAuth : logs
+RoomDataSource -[#pink]-> UserPreferencesManager : peut utiliser
+
+' Espacement horizontal (niveau supérieur) - espace moyen
+"UI Layer" -[hidden]right--> "Navigation Layer"
+"Navigation Layer" -[hidden]right--> "ViewModel Layer"
+
+' Espacement vertical principal - espace légèrement plus grand
+"UI Layer" -[hidden]down---> "Domain Layer"
+"Navigation Layer" -[hidden]down---> "Data Layer"
+"ViewModel Layer" -[hidden]down---> "Services Layer"
+
+' Espacement horizontal (niveau intermédiaire) - espace moyen
+"Domain Layer" -[hidden]right--> "Data Layer"
+"Data Layer" -[hidden]right--> "Services Layer"
+
+' Espacement vers les States - espace standard
+"Domain Layer" -[hidden]down--> "Dependency Injection"
+"Data Layer" -[hidden]down--> "States"
+"Services Layer" -[hidden]down--> "States"
+
+' Espacement horizontal (niveau inférieur) - espace moyen
+"Dependency Injection" -[hidden]right--> "States"
+
+@enduml
