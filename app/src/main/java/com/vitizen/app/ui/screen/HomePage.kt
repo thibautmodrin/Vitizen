@@ -26,18 +26,50 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material3.HorizontalDivider
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomePage(
     homeViewModel: HomeViewModel = hiltViewModel(),
     treatmentViewModel: TreatmentViewModel = hiltViewModel(),
-    onNavigateToProfile: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    onSignOut: () -> Unit
 ) {
-    val context = LocalContext.current
+
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    var showProfileMenu by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    val user by homeViewModel.user.collectAsState()
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Déconnexion") },
+            text = { Text("Êtes-vous sûr de vouloir vous déconnecter ?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        showProfileMenu = false
+                        homeViewModel.logout()
+                        onSignOut()
+                    }
+                ) {
+                    Text("Se déconnecter")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showLogoutDialog = false }
+                ) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -58,11 +90,33 @@ fun HomePage(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToProfile) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profil"
-                        )
+                    Box {
+                        IconButton(onClick = { showProfileMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profil"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showProfileMenu,
+                            onDismissRequest = { showProfileMenu = false }
+                        ) {
+                            if (user != null) {
+
+                                DropdownMenuItem(
+                                    text = { Text(user!!.email) },
+                                    onClick = { showProfileMenu = false }
+                                )
+                                HorizontalDivider()
+                            }
+                            DropdownMenuItem(
+                                text = { Text("Se déconnecter") },
+                                onClick = {
+                                    showProfileMenu = false
+                                    showLogoutDialog = true
+                                }
+                            )
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,

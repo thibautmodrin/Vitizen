@@ -80,6 +80,11 @@ fun AuthNavigation(
                     navController.navigate(NavigationRoutes.SIGN_IN) {
                         popUpTo(NavigationRoutes.HOME) { inclusive = true }
                     }
+                },
+                onSignOut = {
+                    navController.navigate(NavigationRoutes.SIGN_IN) {
+                        popUpTo(NavigationRoutes.HOME) { inclusive = true }
+                    }
                 }
             )
         }
