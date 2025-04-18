@@ -76,7 +76,7 @@ fun AuthNavigation(
 
         composable(NavigationRoutes.HOME) {
             HomePage(
-                onNavigateToSignIn = {
+                onNavigateToProfile = {
                     navController.navigate(NavigationRoutes.SIGN_IN) {
                         popUpTo(NavigationRoutes.HOME) { inclusive = true }
                     }
