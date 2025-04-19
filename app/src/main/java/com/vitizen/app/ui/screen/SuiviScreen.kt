@@ -21,16 +21,7 @@ fun SuiviScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { /* TODO: Ajouter un nouveau suivi */ }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Ajouter un suivi"
-                )
-            }
-        }
+
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier

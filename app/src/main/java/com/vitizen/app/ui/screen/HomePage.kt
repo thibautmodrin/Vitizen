@@ -27,16 +27,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material3.HorizontalDivider
+import com.vitizen.app.ui.viewmodel.ParametresViewModel
+import com.vitizen.app.ui.viewmodel.SuiviViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomePage(
     homeViewModel: HomeViewModel = hiltViewModel(),
     treatmentViewModel: TreatmentViewModel = hiltViewModel(),
+    suiviViewModel: SuiviViewModel = hiltViewModel(),
+    parametresViewModel: ParametresViewModel = hiltViewModel(),
     onNavigateToProfile: () -> Unit,
     onSignOut: () -> Unit
 ) {
-
+    val context = LocalContext.current
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
@@ -102,12 +106,15 @@ fun HomePage(
                             onDismissRequest = { showProfileMenu = false }
                         ) {
                             if (user != null) {
-
+//                                DropdownMenuItem(
+//                                    text = { Text(user!!.name) },
+//                                    onClick = { showProfileMenu = false }
+//                                )
                                 DropdownMenuItem(
                                     text = { Text(user!!.email) },
                                     onClick = { showProfileMenu = false }
                                 )
-                                HorizontalDivider()
+                                Divider()
                             }
                             DropdownMenuItem(
                                 text = { Text("Se déconnecter") },
@@ -174,8 +181,8 @@ fun HomePage(
         ) { page ->
             when (page) {
                 0 -> TreatmentScreen(treatmentViewModel, {})
-                1 -> SuiviScreen()
-                2 -> ParametresScreen()
+                1 -> SuiviScreen(suiviViewModel)
+                2 -> ParametresScreen(parametresViewModel)
             }
         }
     }
@@ -203,34 +210,3 @@ enum class TabItem(
     )
 }
 
-@Composable
-fun SuiviScreen() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Écran de suivi",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-    }
-}
-
-@Composable
-fun ParametresScreen() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Écran des paramètres",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-    }
-} 

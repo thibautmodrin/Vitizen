@@ -26,6 +26,9 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,9 +38,15 @@ fun TreatmentScreen(
 ) {
     val uiState = viewModel.uiState
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
+    
+    // Format de date pour l'affichage
+    val dateFormat = remember { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.FRANCE) }
     
     // États locaux pour les champs du formulaire
-    var date by remember { mutableStateOf("") }
+    var date by remember { 
+        mutableStateOf(dateFormat.format(java.util.Date())) 
+    }
     var type by remember { mutableStateOf("") }
     var produit by remember { mutableStateOf("") }
     var surface by remember { mutableStateOf("") }
@@ -63,6 +72,7 @@ fun TreatmentScreen(
             modifier = Modifier
                 .padding(paddingValues)
                 .padding(16.dp)
+                .verticalScroll(scrollState)
         ) {
             OutlinedTextField(
                 value = date,
