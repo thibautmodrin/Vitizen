@@ -1,5 +1,6 @@
 package com.vitizen.app.ui.screen
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -12,7 +13,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vitizen.app.R
-import com.vitizen.app.domain.model.User
 import com.vitizen.app.ui.viewmodel.HomeViewModel
 import com.vitizen.app.ui.viewmodel.TreatmentViewModel
 import kotlinx.coroutines.launch
@@ -21,23 +21,16 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.material3.HorizontalDivider
 import com.vitizen.app.ui.viewmodel.ParametresViewModel
 import com.vitizen.app.ui.viewmodel.SuiviViewModel
 import androidx.navigation.NavController
 import com.vitizen.app.ui.navigation.NavigationRoutes
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.asPaddingValues
+import com.vitizen.app.services.FirstConnectionManager
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -58,6 +51,16 @@ fun HomePage(
     var showLogoutDialog by remember { mutableStateOf(false) }
     val user by homeViewModel.user.collectAsState()
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+
+    
+    LaunchedEffect(Unit) {
+        val isFirst = FirstConnectionManager.isFirstConnection(context)
+        Log.d("HomePage", "KEY_FIRST_CONNECTION value: $isFirst")
+        if (isFirst) {
+            Log.d("HomePage", "Showing first connection dialog")
+            scope.launch { pagerState.animateScrollToPage(2) }
+        }
+    }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -85,6 +88,7 @@ fun HomePage(
             }
         )
     }
+
 
     Scaffold(
         topBar = {
@@ -121,7 +125,7 @@ fun HomePage(
                                     text = { Text(user!!.email) },
                                     onClick = { showProfileMenu = false }
                                 )
-                                Divider()
+                                HorizontalDivider()
                             }
                             DropdownMenuItem(
                                 text = { Text("Se déconnecter") },

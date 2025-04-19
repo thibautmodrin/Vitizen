@@ -22,12 +22,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.vitizen.app.ui.viewmodel.ParametresViewModel
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.ui.platform.LocalContext
+import com.vitizen.app.services.FirstConnectionManager
+import android.util.Log
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParametresScreen(
     viewModel: ParametresViewModel = hiltViewModel(),
-    onNavigateToPulverisateurForm: (String) -> Unit
+    onNavigateToPulverisateurForm: (String) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var isGeneralInfoEditing by remember { mutableStateOf(false) }
@@ -35,6 +39,8 @@ fun ParametresScreen(
     var pulverisateurToDelete by remember { mutableStateOf<String?>(null) }
     var isGeneralInfoExpanded by remember { mutableStateOf(false) }
     var isMaterialExpanded by remember { mutableStateOf(true) }
+    var showFirstConnectionDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     
     // État local pour les champs
     var domaine by remember(uiState) { mutableStateOf(uiState.domaine) }
@@ -51,6 +57,17 @@ fun ParametresScreen(
             surfaceBlanc = uiState.surfaceBlanc
             surfaceRouge = uiState.surfaceRouge
             typeTraitement = uiState.typeTraitement
+        }
+    }
+
+    // Effet pour gérer la première connexion
+    LaunchedEffect(Unit) {
+        val isFirst = FirstConnectionManager.isFirstConnection(context)
+        Log.d("ParametresScreen", "isFirstConnection: $isFirst")
+        if (isFirst) {
+            isGeneralInfoExpanded = true
+            isGeneralInfoEditing = true
+            showFirstConnectionDialog = true
         }
     }
 
@@ -75,6 +92,30 @@ fun ParametresScreen(
                     onClick = { pulverisateurToDelete = null }
                 ) {
                     Text("Annuler")
+                }
+            }
+        )
+    }
+
+    // Boîte de dialogue de première connexion
+    if (showFirstConnectionDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showFirstConnectionDialog = false
+                FirstConnectionManager.setFirstConnectionDone(context)
+            },
+            title = { Text("Bienvenue") },
+            text = { 
+                Text("Avant de commencer, il est essentiel de renseigner le plus d'informations possible afin de permettre à l'application de proposer une aide optimale. Merci de détailler chaque champ demandé.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { 
+                        showFirstConnectionDialog = false
+                        FirstConnectionManager.setFirstConnectionDone(context)
+                    }
+                ) {
+                    Text("Compris")
                 }
             }
         )

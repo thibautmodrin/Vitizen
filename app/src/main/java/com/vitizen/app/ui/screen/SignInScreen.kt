@@ -33,6 +33,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import android.widget.Toast
 import android.content.Context
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +41,7 @@ import com.vitizen.app.ui.event.ToastDuration
 import kotlinx.coroutines.delay
 import androidx.compose.ui.tooling.preview.Preview
 import com.vitizen.app.ui.theme.VitizenTheme
+import com.vitizen.app.services.FirstConnectionManager
 
 @Composable
 fun SignInScreen(
@@ -57,7 +59,6 @@ fun SignInScreen(
     var showResetEmailDialog by remember { mutableStateOf(false) }
     var showResetConfirmationDialog by remember { mutableStateOf(false) }
     var isTransitioning by remember { mutableStateOf(false) }
-    val uiState by viewModel.uiState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val uiEvent by viewModel.uiEvent.collectAsState()
@@ -82,6 +83,10 @@ fun SignInScreen(
             email = signUpViewModel.email.value
             password = ""
             showConfirmationDialog = true
+            // Marquer comme première connexion
+            FirstConnectionManager.resetFirstConnection(context)
+            // Vérifier que la première connexion est bien marquée
+            Log.d("SignInScreen", "justSignedUp: $justSignedUp, isFirstConnection: ${FirstConnectionManager.isFirstConnection(context)}")
             signUpViewModel.clearJustSignedUp()
         }
     }
