@@ -72,6 +72,17 @@ class ParametresViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    fun removePulverisateur(nom: String) {
+        viewModelScope.launch {
+            val currentList = _uiState.value.pulverisateurs.toMutableList()
+            val index = currentList.indexOfFirst { it.nom == nom }
+            if (index != -1) {
+                currentList.removeAt(index)
+                _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
+            }
+        }
+    }
+
     fun removePulverisateur(index: Int) {
         viewModelScope.launch {
             val currentList = _uiState.value.pulverisateurs.toMutableList()
