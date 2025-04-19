@@ -20,6 +20,7 @@ import androidx.compose.foundation.pager.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
@@ -31,6 +32,12 @@ import com.vitizen.app.ui.viewmodel.ParametresViewModel
 import com.vitizen.app.ui.viewmodel.SuiviViewModel
 import androidx.navigation.NavController
 import com.vitizen.app.ui.navigation.NavigationRoutes
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.asPaddingValues
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -50,6 +57,7 @@ fun HomePage(
     var showProfileMenu by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     val user by homeViewModel.user.collectAsState()
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -133,33 +141,40 @@ fun HomePage(
             )
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ) {
-                TabItem.values().forEachIndexed { index, tabItem ->
+            if (!imeVisible) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ) {
                     NavigationBarItem(
-                        selected = pagerState.currentPage == index,
-                        onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage(index)
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = if (pagerState.currentPage == index) 
-                                    tabItem.selectedIcon 
-                                else 
-                                    tabItem.unselectedIcon,
-                                contentDescription = tabItem.title
-                            )
-                        },
-                        label = { 
-                            Text(
-                                text = tabItem.title,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        },
+                        icon = { Icon(Icons.Outlined.Science, contentDescription = "Traitement") },
+                        label = { Text("Traitement") },
+                        selected = pagerState.currentPage == 0,
+                        onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                        )
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Outlined.ShowChart, contentDescription = "Suivi") },
+                        label = { Text("Suivi") },
+                        selected = pagerState.currentPage == 1,
+                        onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                        )
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Outlined.Settings, contentDescription = "Paramètres") },
+                        label = { Text("Paramètres") },
+                        selected = pagerState.currentPage == 2,
+                        onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
@@ -177,6 +192,7 @@ fun HomePage(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .then(if (imeVisible) Modifier.imePadding() else Modifier)
         ) { page ->
             when (page) {
                 0 -> TreatmentScreen(treatmentViewModel, {})

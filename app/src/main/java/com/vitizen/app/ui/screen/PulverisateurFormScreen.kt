@@ -14,6 +14,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.vitizen.app.ui.viewmodel.ParametresViewModel
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,6 +28,7 @@ fun PulverisateurFormScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     
     // État local pour le formulaire
     var nom by remember { mutableStateOf(initialPulverisateur?.nom ?: "") }
@@ -56,6 +61,7 @@ fun PulverisateurFormScreen(
     var codeCouleurISOExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = { Text(if (initialPulverisateur == null) "Ajouter un pulvérisateur" else "Modifier le pulvérisateur") },
@@ -68,12 +74,11 @@ fun PulverisateurFormScreen(
                     IconButton(
                         onClick = {
                             if (nom.isBlank()) {
-                                Toast.makeText(context, "Le nom du pulvérisateur est obligatoire pour enregistrer", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Le nom du pulvérisateur est obligatoire", Toast.LENGTH_SHORT).show()
                                 return@IconButton
                             }
                             
                             val pulverisateur = if (initialPulverisateur != null) {
-                                // Mise à jour : on garde le même objet avec les nouvelles valeurs
                                 initialPulverisateur.copy(
                                     nom = nom,
                                     typePulverisateur = typePulverisateur,
@@ -96,7 +101,6 @@ fun PulverisateurFormScreen(
                                     codeCouleurISO = codeCouleurISO
                                 )
                             } else {
-                                // Création : nouveau pulvérisateur
                                 ParametresViewModel.PulverisateurInfo(
                                     nom = nom,
                                     typePulverisateur = typePulverisateur,
@@ -133,12 +137,14 @@ fun PulverisateurFormScreen(
                 }
             )
         }
-    ) { paddingValues ->
+    ) { padding ->
         Column(
             modifier = Modifier
-                .padding(paddingValues)
+                .fillMaxSize()
+                .padding(padding)
                 .padding(16.dp)
-                .verticalScroll(scrollState),
+                .verticalScroll(scrollState)
+                .then(if (imeVisible) Modifier.imePadding() else Modifier),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             OutlinedTextField(
