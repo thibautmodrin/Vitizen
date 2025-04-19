@@ -184,7 +184,7 @@ fun HomePage(
                 2 -> ParametresScreen(
                     viewModel = parametresViewModel,
                     onNavigateToPulverisateurForm = { nom ->
-                        navController.navigate(NavigationRoutes.pulverisateurFormRoute(nom ?: "new")) {
+                        navController.navigate(NavigationRoutes.pulverisateurFormRoute(nom)) {
                             launchSingleTop = true
                         }
                     }

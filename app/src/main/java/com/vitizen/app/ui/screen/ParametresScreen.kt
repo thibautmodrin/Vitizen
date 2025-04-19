@@ -174,7 +174,12 @@ fun ParametresScreen(
                                 val nomPulverisateur = pulverisateur.nom.takeIf { it.isNotBlank() } ?: "new"
                                 onNavigateToPulverisateurForm(nomPulverisateur)
                             }
-                        }
+                        },
+                        enabled = isEditing,
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isEditing) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (isEditing) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp)
@@ -184,15 +189,15 @@ fun ParametresScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = "Type: ${pulverisateur.typePulverisateur}",
+                                text = "Type: ${pulverisateur.typePulverisateur?.name ?: "Non défini"}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "Modèle: ${pulverisateur.modeleMarque}",
+                                text = "Modèle: ${pulverisateur.modeleMarque.takeIf { it.isNotBlank() } ?: "Non défini"}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "Pression: ${pulverisateur.pression}",
+                                text = "Pression: ${pulverisateur.pression.takeIf { it.isNotBlank() } ?: "Non définie"}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }

@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vitizen.app.ui.viewmodel.ParametresViewModel
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -20,6 +22,7 @@ fun PulverisateurFormScreen(
     viewModel: ParametresViewModel = hiltViewModel(),
     initialPulverisateur: ParametresViewModel.PulverisateurInfo? = null
 ) {
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     
     // État local pour le formulaire
@@ -65,7 +68,7 @@ fun PulverisateurFormScreen(
                     IconButton(
                         onClick = {
                             if (nom.isBlank()) {
-                                // TODO: Afficher un message d'erreur
+                                Toast.makeText(context, "Le nom du pulvérisateur est obligatoire pour enregistrer", Toast.LENGTH_SHORT).show()
                                 return@IconButton
                             }
                             
