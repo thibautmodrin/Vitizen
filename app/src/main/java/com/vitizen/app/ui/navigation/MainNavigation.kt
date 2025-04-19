@@ -1,5 +1,6 @@
 package com.vitizen.app.ui.navigation
 
+import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -9,17 +10,22 @@ import com.vitizen.app.ui.screen.SignInScreen
 import com.vitizen.app.ui.screen.SignUpScreen
 import com.vitizen.app.ui.screen.SplashScreen
 import com.vitizen.app.ui.screen.TermsAndPrivacyScreen
+import com.vitizen.app.ui.screen.HomePage
+import com.vitizen.app.ui.screen.PulverisateurFormScreen
 import com.vitizen.app.ui.viewmodel.SignInViewModel
 import com.vitizen.app.ui.viewmodel.SignUpViewModel
+import com.vitizen.app.ui.viewmodel.ParametresViewModel
 import com.vitizen.app.services.SecureCredentialsManager
 
+@SuppressLint("StateFlowValueCalledInComposition")
 @Composable
-fun AuthNavigation(
+fun MainNavigation(
     navController: NavHostController,
     secureCredentialsManager: SecureCredentialsManager
 ) {
     val signInViewModel: SignInViewModel = hiltViewModel()
     val signUpViewModel: SignUpViewModel = hiltViewModel()
+    val parametresViewModel: ParametresViewModel = hiltViewModel()
     
     NavHost(
         navController = navController,
@@ -34,7 +40,7 @@ fun AuthNavigation(
                 },
                 onNavigateToHome = {
                     navController.navigate(NavigationRoutes.HOME) {
-                        popUpTo(NavigationRoutes.AUTH) { inclusive = true }
+                        popUpTo(NavigationRoutes.SPLASH) { inclusive = true }
                     }
                 }
             )
@@ -52,7 +58,7 @@ fun AuthNavigation(
                 },
                 onNavigateToHome = {
                     navController.navigate(NavigationRoutes.HOME) {
-                        popUpTo(NavigationRoutes.AUTH) { inclusive = true }
+                        popUpTo(NavigationRoutes.SIGN_IN) { inclusive = true }
                     }
                 }
             )
@@ -81,6 +87,37 @@ fun AuthNavigation(
             TermsAndPrivacyScreen(
                 navController = navController,
                 isPrivacyPolicy = true
+            )
+        }
+
+        composable(NavigationRoutes.HOME) {
+            HomePage(
+                navController = navController,
+                parametresViewModel = parametresViewModel,
+                onNavigateToProfile = { 
+                    navController.navigate(NavigationRoutes.SIGN_IN) {
+                        popUpTo(NavigationRoutes.HOME) { inclusive = true }
+                    }
+                },
+                onSignOut = { 
+                    navController.navigate(NavigationRoutes.SIGN_IN) {
+                        popUpTo(NavigationRoutes.HOME) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(NavigationRoutes.PULVERISATEUR_FORM) { backStackEntry ->
+            val nom = backStackEntry.arguments?.getString("nom")
+            val pulverisateur = if (nom != "new") {
+                parametresViewModel.uiState.value.pulverisateurs.find { it.nom == nom }
+            } else {
+                null
+            }
+            PulverisateurFormScreen(
+                onNavigateBack = { navController.navigateUp() },
+                initialPulverisateur = pulverisateur,
+                viewModel = parametresViewModel
             )
         }
     }

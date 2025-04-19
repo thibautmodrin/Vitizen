@@ -29,14 +29,17 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material3.HorizontalDivider
 import com.vitizen.app.ui.viewmodel.ParametresViewModel
 import com.vitizen.app.ui.viewmodel.SuiviViewModel
+import androidx.navigation.NavController
+import com.vitizen.app.ui.navigation.NavigationRoutes
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomePage(
+    navController: NavController,
     homeViewModel: HomeViewModel = hiltViewModel(),
     treatmentViewModel: TreatmentViewModel = hiltViewModel(),
     suiviViewModel: SuiviViewModel = hiltViewModel(),
-    parametresViewModel: ParametresViewModel = hiltViewModel(),
+    parametresViewModel: ParametresViewModel,
     onNavigateToProfile: () -> Unit,
     onSignOut: () -> Unit
 ) {
@@ -106,10 +109,6 @@ fun HomePage(
                             onDismissRequest = { showProfileMenu = false }
                         ) {
                             if (user != null) {
-//                                DropdownMenuItem(
-//                                    text = { Text(user!!.name) },
-//                                    onClick = { showProfileMenu = false }
-//                                )
                                 DropdownMenuItem(
                                     text = { Text(user!!.email) },
                                     onClick = { showProfileMenu = false }
@@ -182,7 +181,14 @@ fun HomePage(
             when (page) {
                 0 -> TreatmentScreen(treatmentViewModel, {})
                 1 -> SuiviScreen(suiviViewModel)
-                2 -> ParametresScreen(parametresViewModel)
+                2 -> ParametresScreen(
+                    viewModel = parametresViewModel,
+                    onNavigateToPulverisateurForm = { nom ->
+                        navController.navigate(NavigationRoutes.pulverisateurFormRoute(nom ?: "new")) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
             }
         }
     }

@@ -1,9 +1,11 @@
 package com.vitizen.app.ui.screen
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
@@ -17,146 +19,186 @@ import com.vitizen.app.ui.viewmodel.ParametresViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParametresScreen(
-    viewModel: ParametresViewModel = hiltViewModel()
+    viewModel: ParametresViewModel = hiltViewModel(),
+    onNavigateToPulverisateurForm: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isEditing by viewModel.isEditing.collectAsState()
-    val scrollState = rememberScrollState()
-
-    var domaine by remember { mutableStateOf(uiState.domaine) }
-    var fonction by remember { mutableStateOf(uiState.fonction) }
-    var surfaceBlanc by remember { mutableStateOf(uiState.surfaceBlanc) }
-    var surfaceRouge by remember { mutableStateOf(uiState.surfaceRouge) }
-    var pulverisateur by remember { mutableStateOf(uiState.pulverisateur) }
-    var typeTraitement by remember { mutableStateOf(uiState.typeTraitement) }
-
-    LaunchedEffect(uiState) {
+    var isEditing by remember { mutableStateOf(false) }
+    
+    // État local pour les champs
+    var domaine by remember(uiState) { mutableStateOf(uiState.domaine) }
+    var fonction by remember(uiState) { mutableStateOf(uiState.fonction) }
+    var surfaceBlanc by remember(uiState) { mutableStateOf(uiState.surfaceBlanc) }
+    var surfaceRouge by remember(uiState) { mutableStateOf(uiState.surfaceRouge) }
+    var typeTraitement by remember(uiState) { mutableStateOf(uiState.typeTraitement) }
+    
+    // Synchroniser les valeurs avec l'état du ViewModel quand on n'est pas en mode édition
+    LaunchedEffect(uiState, isEditing) {
         if (!isEditing) {
             domaine = uiState.domaine
             fonction = uiState.fonction
             surfaceBlanc = uiState.surfaceBlanc
             surfaceRouge = uiState.surfaceRouge
-            pulverisateur = uiState.pulverisateur
             typeTraitement = uiState.typeTraitement
         }
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Paramètres du domaine") },
-                actions = {
-                    if (!isEditing) {
-                        IconButton(onClick = { viewModel.startEditing() }) {
-                            Icon(Icons.Default.Edit, "Modifier")
-                        }
-                    } else {
+        modifier = Modifier.fillMaxSize(),
+        content = { padding ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Section Informations générales
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Informations générales",
+                            style = MaterialTheme.typography.titleLarge
+                        )
                         IconButton(
                             onClick = {
-                                viewModel.saveParametres(
-                                    domaine = domaine,
-                                    fonction = fonction,
-                                    surfaceBlanc = surfaceBlanc,
-                                    surfaceRouge = surfaceRouge,
-                                    pulverisateur = pulverisateur,
-                                    typeTraitement = typeTraitement
-                                )
+                                if (isEditing) {
+                                    viewModel.saveParametres(
+                                        domaine = domaine,
+                                        fonction = fonction,
+                                        surfaceBlanc = surfaceBlanc,
+                                        surfaceRouge = surfaceRouge,
+                                        typeTraitement = typeTraitement,
+                                        pulverisateurs = uiState.pulverisateurs
+                                    )
+                                }
+                                isEditing = !isEditing
                             }
                         ) {
-                            Icon(Icons.Default.Save, "Enregistrer")
+                            Icon(
+                                imageVector = if (isEditing) Icons.Default.Save else Icons.Default.Edit,
+                                contentDescription = if (isEditing) "Sauvegarder" else "Modifier"
+                            )
                         }
                     }
                 }
-            )
+
+                item {
+                    OutlinedTextField(
+                        value = domaine,
+                        onValueChange = { domaine = it },
+                        label = { Text("Nom du Domaine") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = isEditing,
+                        readOnly = !isEditing
+                    )
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = fonction,
+                        onValueChange = { fonction = it },
+                        label = { Text("Fonction de l'agent") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = isEditing,
+                        readOnly = !isEditing
+                    )
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = surfaceBlanc,
+                        onValueChange = { surfaceBlanc = it },
+                        label = { Text("Surface Blanc") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = isEditing,
+                        readOnly = !isEditing
+                    )
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = surfaceRouge,
+                        onValueChange = { surfaceRouge = it },
+                        label = { Text("Surface Rouge") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = isEditing,
+                        readOnly = !isEditing
+                    )
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = typeTraitement,
+                        onValueChange = { typeTraitement = it },
+                        label = { Text("Type de traitement") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = isEditing,
+                        readOnly = !isEditing
+                    )
+                }
+
+                // Section Matériel
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Matériel",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        if (isEditing) {
+                            IconButton(
+                                onClick = { onNavigateToPulverisateurForm("new") }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Ajouter un pulvérisateur"
+                                )
+                            }
+                        }
+                    }
+                }
+
+                items(uiState.pulverisateurs) { pulverisateur ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { 
+                            if (isEditing) {
+                                val nomPulverisateur = pulverisateur.nom.takeIf { it.isNotBlank() } ?: "new"
+                                onNavigateToPulverisateurForm(nomPulverisateur)
+                            }
+                        }
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = pulverisateur.nom.takeIf { it.isNotBlank() } ?: "Nouveau pulvérisateur",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = "Type: ${pulverisateur.typePulverisateur}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Modèle: ${pulverisateur.modeleMarque}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Pression: ${pulverisateur.pression}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
         }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            OutlinedTextField(
-                value = domaine,
-                onValueChange = { domaine = it },
-                label = { Text("Nom du Domaine") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = isEditing,
-                readOnly = !isEditing
-            )
-
-            OutlinedTextField(
-                value = fonction,
-                onValueChange = { fonction = it },
-                label = { Text("Fonction") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = isEditing,
-                readOnly = !isEditing
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = surfaceBlanc,
-                    onValueChange = { surfaceBlanc = it },
-                    label = { Text("Surface Blanc (ha)") },
-                    modifier = Modifier.weight(1f),
-                    enabled = isEditing,
-                    readOnly = !isEditing
-                )
-
-                OutlinedTextField(
-                    value = surfaceRouge,
-                    onValueChange = { surfaceRouge = it },
-                    label = { Text("Surface Rouge (ha)") },
-                    modifier = Modifier.weight(1f),
-                    enabled = isEditing,
-                    readOnly = !isEditing
-                )
-            }
-
-            Text(
-                text = "Type de pulvérisateur",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = pulverisateur,
-                    onValueChange = { pulverisateur = it },
-                    label = { Text("Modèle") },
-                    modifier = Modifier.weight(1f),
-                    enabled = isEditing,
-                    readOnly = !isEditing
-                )
-            }
-
-            Text(
-                text = "Type de traitement",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = typeTraitement,
-                    onValueChange = { typeTraitement = it },
-                    label = { Text("Type") },
-                    modifier = Modifier.weight(1f),
-                    enabled = isEditing,
-                    readOnly = !isEditing
-                )
-            }
-        }
-    }
+    )
 } 

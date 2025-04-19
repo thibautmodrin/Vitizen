@@ -29,8 +29,8 @@ class ParametresViewModel @Inject constructor() : ViewModel() {
         fonction: String,
         surfaceBlanc: String,
         surfaceRouge: String,
-        pulverisateur: String,
-        typeTraitement: String
+        typeTraitement: String,
+        pulverisateurs: List<PulverisateurInfo>
     ) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
@@ -38,10 +38,45 @@ class ParametresViewModel @Inject constructor() : ViewModel() {
                 fonction = fonction,
                 surfaceBlanc = surfaceBlanc,
                 surfaceRouge = surfaceRouge,
-                pulverisateur = pulverisateur,
-                typeTraitement = typeTraitement
+                typeTraitement = typeTraitement,
+                pulverisateurs = pulverisateurs
             )
             _isEditing.value = false
+        }
+    }
+
+    fun addPulverisateur(pulverisateur: PulverisateurInfo) {
+        viewModelScope.launch {
+            val currentList = _uiState.value.pulverisateurs.toMutableList()
+            currentList.add(pulverisateur)
+            _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
+        }
+    }
+
+    fun updatePulverisateur(oldNom: String, newPulverisateur: PulverisateurInfo) {
+        viewModelScope.launch {
+            val currentList = _uiState.value.pulverisateurs.toMutableList()
+            val index = currentList.indexOfFirst { it.nom == oldNom }
+            if (index != -1) {
+                currentList[index] = newPulverisateur
+                _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
+            }
+        }
+    }
+
+    fun updatePulverisateur(index: Int, pulverisateur: PulverisateurInfo) {
+        viewModelScope.launch {
+            val currentList = _uiState.value.pulverisateurs.toMutableList()
+            currentList[index] = pulverisateur
+            _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
+        }
+    }
+
+    fun removePulverisateur(index: Int) {
+        viewModelScope.launch {
+            val currentList = _uiState.value.pulverisateurs.toMutableList()
+            currentList.removeAt(index)
+            _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
         }
     }
 
@@ -57,13 +92,63 @@ class ParametresViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    enum class TypePulverisateur {
+        PORTE, TRAINE, AUTOMOTEUR, ENJAMBEUR
+    }
+
+    enum class TypePulverisation {
+        JET_PROJETE, JET_HYDRAULIQUE, PNEUMATIQUE, ELECTROSTATIQUE, CONFINEE
+    }
+
+    enum class SystemeRinçage {
+        OUI, NON
+    }
+
+    enum class SystemeGPS {
+        AUCUN, GPS_UNIQUEMENT, GPS_CAPTEURS, DPAE
+    }
+
+    enum class TypeBuse {
+        STANDARD, ANTIDERIVE, MIROIR, INJECTION_AIR, FENTE, CONIQUE_CREUX
+    }
+
+    enum class CodeCouleurISO {
+        ROUGE, JAUNE, BLEU, VERT, ORANGE, MARRON, GRIS
+    }
+
+    data class PulverisateurInfo(
+        val nom: String = "",
+        val typePulverisateur: TypePulverisateur? = null,
+        val typePulverisation: TypePulverisation? = null,
+        val modeleMarque: String = "",
+        val pression: String = "",
+        val debit: String = "",
+        val uniteDebit: UniteDebit = UniteDebit.L_MIN,
+        val nombreRangs: String = "",
+        val volumeBacPrincipal: String = "",
+        val volumeBacSecondaire: String = "",
+        val volumeBacRinçage: String = "",
+        val largeurRampe: String = "",
+        val surfaceMoyenne: String = "",
+        val systemeRinçage: SystemeRinçage? = null,
+        val systemeGPS: SystemeGPS? = null,
+        val typeBuse: TypeBuse? = null,
+        val nombreBuses: String = "",
+        val anglePulverisation: String = "",
+        val codeCouleurISO: CodeCouleurISO? = null
+    )
+
+    enum class UniteDebit {
+        L_MIN, L_HA
+    }
+
     data class ParametresUiState(
         val notificationsEnabled: Boolean = true,
         val domaine: String = "",
         val fonction: String = "",
         val surfaceBlanc: String = "",
         val surfaceRouge: String = "",
-        val pulverisateur: String = "",
-        val typeTraitement: String = ""
+        val typeTraitement: String = "",
+        val pulverisateurs: List<PulverisateurInfo> = emptyList()
     )
 } 

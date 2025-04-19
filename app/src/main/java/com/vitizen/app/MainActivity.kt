@@ -8,7 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
-import com.vitizen.app.ui.navigation.AuthNavigation
+import com.vitizen.app.ui.navigation.MainNavigation
 import com.vitizen.app.ui.navigation.NavigationManager
 import com.vitizen.app.ui.theme.VitizenTheme
 import com.vitizen.app.services.SecureCredentialsManager
@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     navigationManager.initializeNavigation(navController)
-                    AuthNavigation(
+                    MainNavigation(
                         navController = navController,
                         secureCredentialsManager = secureCredentialsManager
                     )
