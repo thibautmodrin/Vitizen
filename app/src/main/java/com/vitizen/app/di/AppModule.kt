@@ -15,6 +15,7 @@ import com.vitizen.app.ui.navigation.NavigationManagerImpl
 import com.google.firebase.auth.FirebaseAuth
 import com.vitizen.app.data.dao.InformationsGeneralesDao
 import com.vitizen.app.data.dao.OperateurDao
+import com.vitizen.app.data.dao.PulverisateurDao
 import com.vitizen.app.data.dao.TreatmentDao
 import dagger.Module
 import dagger.Provides
@@ -149,5 +150,11 @@ object AppModule {
     @Singleton
     fun provideTreatmentDao(database: AppDatabase): TreatmentDao {
         return database.treatmentDao()
+    }
+
+    @Provides
+    @Singleton
+    fun providePulverisateurDao(database: AppDatabase): PulverisateurDao {
+        return database.pulverisateurDao()
     }
 } 

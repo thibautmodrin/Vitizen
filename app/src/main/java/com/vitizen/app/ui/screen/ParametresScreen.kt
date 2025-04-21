@@ -91,6 +91,8 @@ fun ParametresScreen(
     // État local pour gérer l'expansion des sections
     var isMaterialExpanded by remember { mutableStateOf(false) }
     var isParcellesExpanded by remember { mutableStateOf(false) }
+    var isPulverisateurExpanded by remember { mutableStateOf(false) }
+    var isEditingPulverisateur by remember { mutableStateOf(false) }
 
     val informationsGenerales by viewModel.informationsGenerales.collectAsState()
     val isGeneralInfoExpanded by viewModel.isGeneralInfoExpanded.collectAsState()
@@ -98,6 +100,7 @@ fun ParametresScreen(
     val operateurs by viewModel.operateurs.collectAsState()
     val isOperatorExpanded by viewModel.isOperatorExpanded.collectAsState()
     val isEditingOperator by viewModel.isEditingOperator.collectAsState()
+    val pulverisateurs by viewModel.pulverisateurs.collectAsState()
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -394,27 +397,145 @@ fun ParametresScreen(
 
                 // Section Matériel de traitement
                 item {
-                    SectionCard(
-                        title = "Matériel de traitement",
-                        isExpanded = isMaterialExpanded,
-                        onExpandToggle = { isMaterialExpanded = !isMaterialExpanded },
-                        onAddClick = { onNavigateToForm("material") }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { isPulverisateurExpanded = !isPulverisateurExpanded }
                     ) {
-                        // Contenu vide pour l'instant
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Matériel de traitement",
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPulverisateurExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = if (isPulverisateurExpanded) "Replier" else "Déplier"
+                                    )
+                                    if (isPulverisateurExpanded) {
+                                        IconButton(
+                                            onClick = {
+                                                if (isEditingPulverisateur) {
+                                                    isEditingPulverisateur = false
+                                                } else {
+                                                    isEditingPulverisateur = true
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isEditingPulverisateur) Icons.Default.Save else Icons.Default.Edit,
+                                                contentDescription = if (isEditingPulverisateur) "Sauvegarder" else "Modifier"
+                                            )
+                                        }
+                                        if (isEditingPulverisateur) {
+                                            IconButton(
+                                                onClick = { onNavigateToForm("pulverisateur") }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = "Ajouter un pulvérisateur"
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            AnimatedVisibility(
+                                visible = isPulverisateurExpanded,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    if (pulverisateurs.isNotEmpty()) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            pulverisateurs.forEach { pulverisateur ->
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                                    onClick = { 
+                                                        if (isEditingPulverisateur) {
+                                                            onNavigateToForm("pulverisateur/${pulverisateur.id}")
+                                                        }
+                                                    },
+                                                    enabled = isEditingPulverisateur,
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = if (isEditingPulverisateur) 
+                                                            MaterialTheme.colorScheme.surface 
+                                                        else 
+                                                            MaterialTheme.colorScheme.surfaceVariant,
+                                                        contentColor = if (isEditingPulverisateur) 
+                                                            MaterialTheme.colorScheme.onSurface 
+                                                        else 
+                                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .padding(16.dp)
+                                                                .fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text(
+                                                                text = "${pulverisateur.nomMateriel} • ${pulverisateur.modeDeplacement} • ${pulverisateur.nombreRampes} rampes • ${pulverisateur.nombreBusesParRampe} buses/rampe • ${pulverisateur.typeBuses}",
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                modifier = Modifier.weight(1f)
+                                                            )
+                                                        }
+                                                        
+                                                        if (isEditingPulverisateur) {
+                                                            IconButton(
+                                                                onClick = {
+                                                                    scope.launch {
+                                                                        viewModel.deletePulverisateur(pulverisateur)
+                                                                    }
+                                                                },
+                                                                modifier = Modifier
+                                                                    .align(Alignment.CenterEnd)
+                                                                    .padding(8.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.Delete,
+                                                                    contentDescription = "Supprimer",
+                                                                    tint = MaterialTheme.colorScheme.error
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Text(
+                                            text = "Aucun pulvérisateur enregistré",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                // Section Parcelles
-                item {
-                    SectionCard(
-                        title = "Parcelles",
-                        isExpanded = isParcellesExpanded,
-                        onExpandToggle = { isParcellesExpanded = !isParcellesExpanded },
-                        onAddClick = { onNavigateToForm("parcelles") }
-                    ) {
-                        // Contenu vide pour l'instant
-                    }
-                }
             }
         }
     )

@@ -1,15 +1,15 @@
 package com.vitizen.app.ui.viewmodel
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitizen.app.data.dao.InformationsGeneralesDao
 import com.vitizen.app.data.dao.OperateurDao
 import com.vitizen.app.data.entity.InformationsGeneralesEntity
 import com.vitizen.app.data.entity.OperateurEntity
+import com.vitizen.app.data.entity.PulverisateurEntity
 import com.vitizen.app.data.repository.InformationsGeneralesRepository
+import com.vitizen.app.data.repository.PulverisateurRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,13 +21,9 @@ import javax.inject.Inject
 class ParametresViewModel @Inject constructor(
     private val repository: InformationsGeneralesRepository,
     private val informationsGeneralesDao: InformationsGeneralesDao,
-    private val operateurDao: OperateurDao
+    private val operateurDao: OperateurDao,
+    private val pulverisateurRepository: PulverisateurRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ParametresUiState())
-    val uiState: StateFlow<ParametresUiState> = _uiState.asStateFlow()
-
-    private val _isEditing = MutableStateFlow(false)
-    val isEditing: StateFlow<Boolean> = _isEditing.asStateFlow()
 
     private val _isEditingGeneralInfo = MutableStateFlow(false)
     val isEditingGeneralInfo: StateFlow<Boolean> = _isEditingGeneralInfo.asStateFlow()
@@ -47,11 +43,19 @@ class ParametresViewModel @Inject constructor(
     private val _isOperatorExpanded = MutableStateFlow(true)
     val isOperatorExpanded: StateFlow<Boolean> = _isOperatorExpanded.asStateFlow()
 
+    private val _pulverisateurs = MutableStateFlow<List<PulverisateurEntity>>(emptyList())
+    val pulverisateurs: StateFlow<List<PulverisateurEntity>> = _pulverisateurs.asStateFlow()
+
     init {
         loadInformationsGenerales()
         viewModelScope.launch {
             operateurDao.getAll().collect { operateursList ->
                 _operateurs.value = operateursList
+            }
+        }
+        viewModelScope.launch {
+            pulverisateurRepository.getAllPulverisateurs().collect { pulverisateurs ->
+                _pulverisateurs.value = pulverisateurs
             }
         }
     }
@@ -64,88 +68,11 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-    fun startEditing() {
-        _isEditing.value = true
-    }
 
-    fun saveParametres(
-        domaine: String,
-        fonction: String,
-        surfaceBlanc: String,
-        surfaceRouge: String,
-        typeTraitement: String,
-        pulverisateurs: List<PulverisateurInfo>
-    ) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                domaine = domaine,
-                fonction = fonction,
-                surfaceBlanc = surfaceBlanc,
-                surfaceRouge = surfaceRouge,
-                typeTraitement = typeTraitement,
-                pulverisateurs = pulverisateurs
-            )
-            _isEditing.value = false
-        }
-    }
 
-    fun addPulverisateur(pulverisateur: PulverisateurInfo) {
-        viewModelScope.launch {
-            val currentList = _uiState.value.pulverisateurs.toMutableList()
-            currentList.add(pulverisateur)
-            _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
-        }
-    }
 
-    fun updatePulverisateur(oldNom: String, newPulverisateur: PulverisateurInfo) {
-        viewModelScope.launch {
-            val currentList = _uiState.value.pulverisateurs.toMutableList()
-            val index = currentList.indexOfFirst { it.nom == oldNom }
-            if (index != -1) {
-                currentList[index] = newPulverisateur
-                _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
-            }
-        }
-    }
 
-    fun updatePulverisateur(index: Int, pulverisateur: PulverisateurInfo) {
-        viewModelScope.launch {
-            val currentList = _uiState.value.pulverisateurs.toMutableList()
-            currentList[index] = pulverisateur
-            _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
-        }
-    }
 
-    fun removePulverisateur(nom: String) {
-        viewModelScope.launch {
-            val currentList = _uiState.value.pulverisateurs.toMutableList()
-            val index = currentList.indexOfFirst { it.nom == nom }
-            if (index != -1) {
-                currentList.removeAt(index)
-                _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
-            }
-        }
-    }
-
-    fun removePulverisateur(index: Int) {
-        viewModelScope.launch {
-            val currentList = _uiState.value.pulverisateurs.toMutableList()
-            currentList.removeAt(index)
-            _uiState.value = _uiState.value.copy(pulverisateurs = currentList)
-        }
-    }
-
-    fun toggleNotifications(enabled: Boolean) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(notificationsEnabled = enabled)
-        }
-    }
-
-    fun logout() {
-        viewModelScope.launch {
-            // TODO: Implémenter la déconnexion
-        }
-    }
 
     fun addInformationsGenerales(
         nomDomaine: String,
@@ -167,11 +94,7 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-    fun updateInformationsGenerales(informations: InformationsGeneralesEntity) {
-        viewModelScope.launch {
-            informationsGeneralesDao.update(informations)
-        }
-    }
+
 
     fun deleteInformationsGenerales(informations: InformationsGeneralesEntity) {
         viewModelScope.launch {
@@ -179,45 +102,7 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-    fun updateNomDomaine(nomDomaine: String) {
-        _uiState.value = _uiState.value.copy(
-            informationsGenerales = _uiState.value.informationsGenerales.copy(
-                nomDomaine = nomDomaine
-            )
-        )
-    }
 
-    fun updateModeCulture(modeCulture: String) {
-        _uiState.value = _uiState.value.copy(
-            informationsGenerales = _uiState.value.informationsGenerales.copy(
-                modeCulture = modeCulture
-            )
-        )
-    }
-
-    fun updateCertifications(certifications: List<String>) {
-        _uiState.value = _uiState.value.copy(
-            informationsGenerales = _uiState.value.informationsGenerales.copy(
-                certifications = certifications
-            )
-        )
-    }
-
-    fun updateSurfaceTotale(surfaceTotale: Float?) {
-        _uiState.value = _uiState.value.copy(
-            informationsGenerales = _uiState.value.informationsGenerales.copy(
-                surfaceTotale = surfaceTotale ?: 0f
-            )
-        )
-    }
-
-    fun updateCodePostal(codePostal: String) {
-        _uiState.value = _uiState.value.copy(
-            informationsGenerales = _uiState.value.informationsGenerales.copy(
-                codePostal = codePostal
-            )
-        )
-    }
 
     fun setGeneralInfoExpanded(expanded: Boolean) {
         _isGeneralInfoExpanded.value = expanded
@@ -248,11 +133,7 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-    fun updateOperateur(operateur: OperateurEntity) {
-        viewModelScope.launch {
-            operateurDao.update(operateur)
-        }
-    }
+
 
     fun deleteOperateur(operateur: OperateurEntity) {
         viewModelScope.launch {
@@ -324,74 +205,76 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-    enum class TypePulverisateur {
-        PORTE, TRAINE, AUTOMOTEUR, ENJAMBEUR
+
+    suspend fun getPulverisateurById(id: Long): PulverisateurEntity? {
+        return pulverisateurRepository.getPulverisateurById(id)
     }
 
-    enum class TypePulverisation {
-        JET_PROJETE, JET_HYDRAULIQUE, PNEUMATIQUE, ELECTROSTATIQUE, CONFINEE
-    }
-
-    enum class SystemeRinçage {
-        OUI, NON
-    }
-
-    enum class SystemeGPS {
-        AUCUN, GPS_UNIQUEMENT, GPS_CAPTEURS, DPAE
-    }
-
-    enum class TypeBuse {
-        STANDARD, ANTIDERIVE, MIROIR, INJECTION_AIR, FENTE, CONIQUE_CREUX
-    }
-
-    enum class CodeCouleurISO {
-        ROUGE, JAUNE, BLEU, VERT, ORANGE, MARRON, GRIS
-    }
-
-    data class PulverisateurInfo(
-        val nom: String = "",
-        val typePulverisateur: TypePulverisateur? = null,
-        val typePulverisation: TypePulverisation? = null,
-        val modeleMarque: String = "",
-        val pression: String = "",
-        val debit: String = "",
-        val uniteDebit: UniteDebit = UniteDebit.L_MIN,
-        val nombreRangs: String = "",
-        val volumeBacPrincipal: String = "",
-        val volumeBacSecondaire: String = "",
-        val volumeBacRinçage: String = "",
-        val largeurRampe: String = "",
-        val surfaceMoyenne: String = "",
-        val systemeRinçage: SystemeRinçage? = null,
-        val systemeGPS: SystemeGPS? = null,
-        val typeBuse: TypeBuse? = null,
-        val nombreBuses: String = "",
-        val anglePulverisation: String = "",
-        val codeCouleurISO: CodeCouleurISO? = null
-    )
-
-    enum class UniteDebit {
-        L_MIN, L_HA
-    }
-
-    data class ParametresUiState(
-        val notificationsEnabled: Boolean = true,
-        val domaine: String = "",
-        val fonction: String = "",
-        val surfaceBlanc: String = "",
-        val surfaceRouge: String = "",
-        val typeTraitement: String = "",
-        val pulverisateurs: List<PulverisateurInfo> = emptyList(),
-        val informationsGenerales: InformationsGeneralesEntity = InformationsGeneralesEntity(
-            nomDomaine = "",
-            modeCulture = "",
-            certifications = emptyList(),
-            surfaceTotale = 0f,
-            codePostal = ""
+    suspend fun addPulverisateur(
+        nomMateriel: String,
+        modeDeplacement: String,
+        nombreRampes: Int?,
+        nombreBusesParRampe: Int?,
+        typeBuses: String,
+        pressionPulverisation: Float?,
+        debitParBuse: Float?,
+        anglePulverisation: Int?,
+        largeurTraitement: Float?,
+        plageVitesseAvancementMin: Float?,
+        plageVitesseAvancementMax: Float?,
+        volumeTotalCuve: Int?
+    ) {
+        val pulverisateur = PulverisateurEntity(
+            nomMateriel = nomMateriel,
+            modeDeplacement = modeDeplacement,
+            nombreRampes = nombreRampes,
+            nombreBusesParRampe = nombreBusesParRampe,
+            typeBuses = typeBuses,
+            pressionPulverisation = pressionPulverisation,
+            debitParBuse = debitParBuse,
+            anglePulverisation = anglePulverisation,
+            largeurTraitement = largeurTraitement,
+            plageVitesseAvancementMin = plageVitesseAvancementMin,
+            plageVitesseAvancementMax = plageVitesseAvancementMax,
+            volumeTotalCuve = volumeTotalCuve
         )
-    )
+        pulverisateurRepository.addPulverisateur(pulverisateur)
+    }
 
-    sealed class UiEvent {
-        data class ShowToast(val message: String) : UiEvent()
+    suspend fun updatePulverisateur(
+        id: Long,
+        nomMateriel: String,
+        modeDeplacement: String,
+        nombreRampes: Int?,
+        nombreBusesParRampe: Int?,
+        typeBuses: String,
+        pressionPulverisation: Float?,
+        debitParBuse: Float?,
+        anglePulverisation: Int?,
+        largeurTraitement: Float?,
+        plageVitesseAvancementMin: Float?,
+        plageVitesseAvancementMax: Float?,
+        volumeTotalCuve: Int?
+    ) {
+        val pulverisateur = PulverisateurEntity(
+            id = id,
+            nomMateriel = nomMateriel,
+            modeDeplacement = modeDeplacement,
+            nombreRampes = nombreRampes,
+            nombreBusesParRampe = nombreBusesParRampe,
+            typeBuses = typeBuses,
+            pressionPulverisation = pressionPulverisation,
+            debitParBuse = debitParBuse,
+            anglePulverisation = anglePulverisation,
+            largeurTraitement = largeurTraitement,
+            plageVitesseAvancementMin = plageVitesseAvancementMin,
+            plageVitesseAvancementMax = plageVitesseAvancementMax,
+            volumeTotalCuve = volumeTotalCuve
+        )
+        pulverisateurRepository.updatePulverisateur(pulverisateur)
+    }
+
+    suspend fun deletePulverisateur(pulverisateur: PulverisateurEntity) {
+        pulverisateurRepository.deletePulverisateur(pulverisateur)
     }
 } 

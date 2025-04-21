@@ -17,6 +17,7 @@ import com.vitizen.app.ui.viewmodel.SignUpViewModel
 import com.vitizen.app.ui.viewmodel.ParametresViewModel
 import com.vitizen.app.services.SecureCredentialsManager
 import com.vitizen.app.ui.screen.OperateurForm
+import com.vitizen.app.ui.screen.PulverisateurForm
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -140,6 +141,23 @@ fun MainNavigation(
                 viewModel = parametresViewModel,
                 onNavigateBack = { navController.navigateUp() },
                 operateurId = id
+            )
+        }
+
+        composable(NavigationRoutes.PULVERISATEUR_FORM) { backStackEntry ->
+            PulverisateurForm(
+                viewModel = parametresViewModel,
+                onNavigateBack = { navController.navigateUp() },
+                pulverisateurId = null
+            )
+        }
+
+        composable("${NavigationRoutes.PULVERISATEUR_FORM}/{id}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
+            PulverisateurForm(
+                viewModel = parametresViewModel,
+                onNavigateBack = { navController.navigateUp() },
+                pulverisateurId = id
             )
         }
     }

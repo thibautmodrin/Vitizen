@@ -8,9 +8,11 @@ import androidx.room.TypeConverters
 import com.vitizen.app.data.converter.StringListConverter
 import com.vitizen.app.data.dao.InformationsGeneralesDao
 import com.vitizen.app.data.dao.OperateurDao
+import com.vitizen.app.data.dao.PulverisateurDao
 import com.vitizen.app.data.dao.TreatmentDao
 import com.vitizen.app.data.entity.InformationsGeneralesEntity
 import com.vitizen.app.data.entity.OperateurEntity
+import com.vitizen.app.data.entity.PulverisateurEntity
 import com.vitizen.app.data.entity.TreatmentEntity
 import com.vitizen.app.data.local.dao.UserDao
 import com.vitizen.app.data.local.entity.UserEntity
@@ -21,9 +23,10 @@ import com.vitizen.app.data.util.DateConverter
         InformationsGeneralesEntity::class,
         OperateurEntity::class,
         UserEntity::class,
-        TreatmentEntity::class
+        TreatmentEntity::class,
+        PulverisateurEntity::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(StringListConverter::class, DateConverter::class)
@@ -32,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun operateurDao(): OperateurDao
     abstract fun userDao(): UserDao
     abstract fun treatmentDao(): TreatmentDao
+    abstract fun pulverisateurDao(): PulverisateurDao
 
     companion object {
         @Volatile
