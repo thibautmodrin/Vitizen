@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.vitizen.app.data.datasource.RoomDataSource
 import com.vitizen.app.data.datasource.UserPreferencesManager
-import com.vitizen.app.data.local.AppDatabase
+import com.vitizen.app.data.database.AppDatabase
 import com.vitizen.app.data.local.dao.UserDao
 import com.vitizen.app.data.repository.AuthRepositoryImpl
 import com.vitizen.app.domain.repository.AuthRepository
@@ -13,6 +13,9 @@ import com.vitizen.app.services.*
 import com.vitizen.app.ui.navigation.NavigationManager
 import com.vitizen.app.ui.navigation.NavigationManagerImpl
 import com.google.firebase.auth.FirebaseAuth
+import com.vitizen.app.data.dao.InformationsGeneralesDao
+import com.vitizen.app.data.dao.OperateurDao
+import com.vitizen.app.data.dao.TreatmentDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -50,9 +53,9 @@ object AppModule {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "citizen_db"
+            "vitizen_database"
         )
-        .addMigrations(AppDatabase.MIGRATION_1_2)
+        .fallbackToDestructiveMigration()
         .build()
     }
 
@@ -128,5 +131,23 @@ object AppModule {
         @ApplicationContext context: Context
     ): SecureCredentialsManager {
         return SecureCredentialsManager(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideInformationsGeneralesDao(database: AppDatabase): InformationsGeneralesDao {
+        return database.informationsGeneralesDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideOperateurDao(database: AppDatabase): OperateurDao {
+        return database.operateurDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideTreatmentDao(database: AppDatabase): TreatmentDao {
+        return database.treatmentDao()
     }
 } 

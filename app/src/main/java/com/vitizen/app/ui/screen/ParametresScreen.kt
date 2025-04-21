@@ -1,18 +1,13 @@
 package com.vitizen.app.ui.screen
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,357 +16,407 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vitizen.app.ui.viewmodel.ParametresViewModel
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.ui.platform.LocalContext
-import com.vitizen.app.services.FirstConnectionManager
-import android.util.Log
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import com.vitizen.app.ui.navigation.NavigationRoutes
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
+
+@Composable
+fun SectionCard(
+    title: String,
+    isExpanded: Boolean,
+    onExpandToggle: () -> Unit,
+    onAddClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onExpandToggle
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (isExpanded) "Replier" else "Déplier"
+                    )
+                    if (isExpanded) {
+                        IconButton(
+                            onClick = onAddClick
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Ajouter"
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (isExpanded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    content()
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParametresScreen(
     viewModel: ParametresViewModel = hiltViewModel(),
-    onNavigateToPulverisateurForm: (String) -> Unit,
+    onNavigateToForm: (String) -> Unit,
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var isGeneralInfoEditing by remember { mutableStateOf(false) }
-    var isMaterialEditing by remember { mutableStateOf(false) }
-    var pulverisateurToDelete by remember { mutableStateOf<String?>(null) }
-    var isGeneralInfoExpanded by remember { mutableStateOf(false) }
-    var isMaterialExpanded by remember { mutableStateOf(true) }
-    var showFirstConnectionDialog by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    
-    // État local pour les champs
-    var domaine by remember(uiState) { mutableStateOf(uiState.domaine) }
-    var fonction by remember(uiState) { mutableStateOf(uiState.fonction) }
-    var surfaceBlanc by remember(uiState) { mutableStateOf(uiState.surfaceBlanc) }
-    var surfaceRouge by remember(uiState) { mutableStateOf(uiState.surfaceRouge) }
-    var typeTraitement by remember(uiState) { mutableStateOf(uiState.typeTraitement) }
-    
-    // Synchroniser les valeurs avec l'état du ViewModel quand on n'est pas en mode édition
-    LaunchedEffect(uiState, isGeneralInfoEditing) {
-        if (!isGeneralInfoEditing) {
-            domaine = uiState.domaine
-            fonction = uiState.fonction
-            surfaceBlanc = uiState.surfaceBlanc
-            surfaceRouge = uiState.surfaceRouge
-            typeTraitement = uiState.typeTraitement
-        }
-    }
+    // État local pour gérer l'expansion des sections
+    var isMaterialExpanded by remember { mutableStateOf(false) }
+    var isParcellesExpanded by remember { mutableStateOf(false) }
 
-    // Effet pour gérer la première connexion
-    LaunchedEffect(Unit) {
-        val isFirst = FirstConnectionManager.isFirstConnection(context)
-        Log.d("ParametresScreen", "isFirstConnection: $isFirst")
-        if (isFirst) {
-            isGeneralInfoExpanded = true
-            isGeneralInfoEditing = true
-            showFirstConnectionDialog = true
-        }
-    }
-
-    // Boîte de dialogue de confirmation
-    if (pulverisateurToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { pulverisateurToDelete = null },
-            title = { Text("Confirmer la suppression") },
-            text = { Text("Êtes-vous sûr de vouloir supprimer ce pulvérisateur ?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pulverisateurToDelete?.let { viewModel.removePulverisateur(it) }
-                        pulverisateurToDelete = null
-                    }
-                ) {
-                    Text("Supprimer", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { pulverisateurToDelete = null }
-                ) {
-                    Text("Annuler")
-                }
-            }
-        )
-    }
-
-    // Boîte de dialogue de première connexion
-    if (showFirstConnectionDialog) {
-        AlertDialog(
-            onDismissRequest = { 
-                showFirstConnectionDialog = false
-                FirstConnectionManager.setFirstConnectionDone(context)
-            },
-            title = { Text("Bienvenue") },
-            text = { 
-                Text("Avant de commencer, il est essentiel de renseigner le plus d'informations possible afin de permettre à l'application de proposer une aide optimale. Merci de détailler chaque champ demandé.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { 
-                        showFirstConnectionDialog = false
-                        FirstConnectionManager.setFirstConnectionDone(context)
-                    }
-                ) {
-                    Text("Compris")
-                }
-            }
-        )
-    }
+    val informationsGenerales by viewModel.informationsGenerales.collectAsState()
+    val isGeneralInfoExpanded by viewModel.isGeneralInfoExpanded.collectAsState()
+    val isEditingGeneralInfo by viewModel.isEditingGeneralInfo.collectAsState()
+    val operateurs by viewModel.operateurs.collectAsState()
+    val isOperatorExpanded by viewModel.isOperatorExpanded.collectAsState()
+    val isEditingOperator by viewModel.isEditingOperator.collectAsState()
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         content = { padding ->
-            Column(
-            modifier = Modifier
-                .fillMaxSize()
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
                     .padding(padding)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Section Informations générales
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { isGeneralInfoExpanded = !isGeneralInfoExpanded }
-                ) {
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Informations générales",
-                                style = MaterialTheme.typography.titleLarge
-                            )
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { viewModel.setGeneralInfoExpanded(!isGeneralInfoExpanded) }
+                    ) {
+                        Column {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = if (isGeneralInfoExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    contentDescription = if (isGeneralInfoExpanded) "Replier" else "Déplier"
+                                Text(
+                                    text = "Informations générales",
+                                    style = MaterialTheme.typography.titleLarge
                                 )
-                                if (isGeneralInfoExpanded) {
-                                    IconButton(
-                                        onClick = {
-                                            if (isGeneralInfoEditing) {
-                                                viewModel.saveParametres(
-                                                    domaine = domaine,
-                                                    fonction = fonction,
-                                                    surfaceBlanc = surfaceBlanc,
-                                                    surfaceRouge = surfaceRouge,
-                                                    typeTraitement = typeTraitement,
-                                                    pulverisateurs = uiState.pulverisateurs
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isGeneralInfoExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = if (isGeneralInfoExpanded) "Replier" else "Déplier"
+                                    )
+                                    if (isGeneralInfoExpanded) {
+                                        IconButton(
+                                            onClick = {
+                                                if (isEditingGeneralInfo) {
+                                                    viewModel.stopEditingGeneralInfo()
+                                                } else {
+                                                    viewModel.startEditingGeneralInfo()
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isEditingGeneralInfo) Icons.Default.Save else Icons.Default.Edit,
+                                                contentDescription = if (isEditingGeneralInfo) "Sauvegarder" else "Modifier"
+                                            )
+                                        }
+                                        if (isEditingGeneralInfo) {
+                                            IconButton(
+                                                onClick = { onNavigateToForm("generalInfo") }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = "Ajouter des informations"
                                                 )
                                             }
-                                            isGeneralInfoEditing = !isGeneralInfoEditing
                                         }
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isGeneralInfoEditing) Icons.Default.Save else Icons.Default.Edit,
-                                            contentDescription = if (isGeneralInfoEditing) "Sauvegarder" else "Modifier"
-                                        )
                                     }
                                 }
                             }
-                        }
 
-                        AnimatedVisibility(
-                            visible = isGeneralInfoExpanded,
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            AnimatedVisibility(
+                                visible = isGeneralInfoExpanded,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
                             ) {
-                                OutlinedTextField(
-                                    value = domaine,
-                                    onValueChange = { domaine = it },
-                                    label = { Text("Nom du Domaine") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = isGeneralInfoEditing,
-                                    readOnly = !isGeneralInfoEditing
-                                )
-
-                                OutlinedTextField(
-                                    value = fonction,
-                                    onValueChange = { fonction = it },
-                                    label = { Text("Fonction de l'agent") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = isGeneralInfoEditing,
-                                    readOnly = !isGeneralInfoEditing
-                                )
-
-                                OutlinedTextField(
-                                    value = surfaceBlanc,
-                                    onValueChange = { surfaceBlanc = it },
-                                    label = { Text("Surface Blanc") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = isGeneralInfoEditing,
-                                    readOnly = !isGeneralInfoEditing
-                                )
-
-                                OutlinedTextField(
-                                    value = surfaceRouge,
-                                    onValueChange = { surfaceRouge = it },
-                                    label = { Text("Surface Rouge") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = isGeneralInfoEditing,
-                                    readOnly = !isGeneralInfoEditing
-                                )
-
-                                OutlinedTextField(
-                                    value = typeTraitement,
-                                    onValueChange = { typeTraitement = it },
-                                    label = { Text("Type de traitement") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = isGeneralInfoEditing,
-                                    readOnly = !isGeneralInfoEditing
-                                )
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    if (informationsGenerales.isNotEmpty()) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            informationsGenerales.forEach { info ->
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                                    onClick = { 
+                                                        if (isEditingGeneralInfo) {
+                                                            onNavigateToForm("generalInfo/${info.id}")
+                                                        }
+                                                    },
+                                                    enabled = isEditingGeneralInfo,
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = if (isEditingGeneralInfo) 
+                                                            MaterialTheme.colorScheme.surface 
+                                                        else 
+                                                            MaterialTheme.colorScheme.surfaceVariant,
+                                                        contentColor = if (isEditingGeneralInfo) 
+                                                            MaterialTheme.colorScheme.onSurface 
+                                                        else 
+                                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .padding(16.dp)
+                                                                .fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text(
+                                                                text = "${info.nomDomaine} • ${info.modeCulture} • ${info.surfaceTotale} ha • ${info.codePostal} • ${info.certifications.joinToString(", ")}",
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                modifier = Modifier.weight(1f)
+                                                            )
+                                                        }
+                                                        
+                                                        if (isEditingGeneralInfo) {
+                                                            IconButton(
+                                                                onClick = {
+                                                                    scope.launch {
+                                                                        viewModel.deleteInformationsGenerales(info)
+                                                                    }
+                                                                },
+                                                                modifier = Modifier
+                                                                    .align(Alignment.CenterEnd)
+                                                                    .padding(8.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.Delete,
+                                                                    contentDescription = "Supprimer",
+                                                                    tint = MaterialTheme.colorScheme.error
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Text(
+                                            text = "Aucune information générale enregistrée",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
-                // Section Matériel
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { isMaterialExpanded = !isMaterialExpanded }
-                ) {
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Matériel",
-                                style = MaterialTheme.typography.titleLarge
-                            )
+                // Section Opérateur de traitement
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { viewModel.setOperatorExpanded(!isOperatorExpanded) }
+                    ) {
+                        Column {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = if (isMaterialExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    contentDescription = if (isMaterialExpanded) "Replier" else "Déplier"
+                                Text(
+                                    text = "Opérateur de traitement",
+                                    style = MaterialTheme.typography.titleLarge
                                 )
-                                if (isMaterialExpanded) {
-                                    IconButton(
-                                        onClick = {
-                                            if (isMaterialEditing) {
-                                                viewModel.saveParametres(
-                                                    domaine = uiState.domaine,
-                                                    fonction = uiState.fonction,
-                                                    surfaceBlanc = uiState.surfaceBlanc,
-                                                    surfaceRouge = uiState.surfaceRouge,
-                                                    typeTraitement = uiState.typeTraitement,
-                                                    pulverisateurs = uiState.pulverisateurs
-                                                )
-                                            }
-                                            isMaterialEditing = !isMaterialEditing
-                                        }
-                                    ) {
-                        Icon(
-                                            imageVector = if (isMaterialEditing) Icons.Default.Save else Icons.Default.Edit,
-                                            contentDescription = if (isMaterialEditing) "Sauvegarder" else "Modifier"
-                                        )
-                                    }
-                                    if (isMaterialEditing) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isOperatorExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = if (isOperatorExpanded) "Replier" else "Déplier"
+                                    )
+                                    if (isOperatorExpanded) {
                                         IconButton(
-                                            onClick = { onNavigateToPulverisateurForm("new") }
+                                            onClick = {
+                                                if (isEditingOperator) {
+                                                    viewModel.stopEditingOperator()
+                                                } else {
+                                                    viewModel.startEditingOperator()
+                                                }
+                                            }
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Add,
-                                                contentDescription = "Ajouter un pulvérisateur"
+                                                imageVector = if (isEditingOperator) Icons.Default.Save else Icons.Default.Edit,
+                                                contentDescription = if (isEditingOperator) "Sauvegarder" else "Modifier"
                                             )
+                                        }
+                                        if (isEditingOperator) {
+                                            IconButton(
+                                                onClick = { onNavigateToForm("operateur") }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = "Ajouter un opérateur"
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        AnimatedVisibility(
-                            visible = isMaterialExpanded,
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            AnimatedVisibility(
+                                visible = isOperatorExpanded,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
                             ) {
-                                uiState.pulverisateurs.forEach { pulverisateur ->
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        onClick = { 
-                                            if (isMaterialEditing) {
-                                                val nomPulverisateur = pulverisateur.nom.takeIf { it.isNotBlank() } ?: "new"
-                                                onNavigateToPulverisateurForm(nomPulverisateur)
-                                            }
-                                        },
-                                        enabled = isMaterialEditing,
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = if (isMaterialEditing) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant,
-                                            contentColor = if (isMaterialEditing) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    ) {
-                                        Box(
-                                            modifier = Modifier.fillMaxWidth()
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    if (operateurs.isNotEmpty()) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .padding(16.dp)
-                                                    .fillMaxWidth()
-                                            ) {
-                                                Text(
-                                                    text = pulverisateur.nom.takeIf { it.isNotBlank() } ?: "Nouveau pulvérisateur",
-                                                    style = MaterialTheme.typography.titleMedium
-                                                )
-                                                Text(
-                                                    text = "Type: ${pulverisateur.typePulverisateur?.name ?: "Non défini"}",
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
-                                                Text(
-                                                    text = "Modèle: ${pulverisateur.modeleMarque.takeIf { it.isNotBlank() } ?: "Non défini"}",
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
-                                                Text(
-                                                    text = "Pression: ${pulverisateur.pression.takeIf { it.isNotBlank() } ?: "Non définie"}",
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
-                                            }
-                                            
-                                            if (isMaterialEditing) {
-                                                IconButton(
-                                                    onClick = { pulverisateurToDelete = pulverisateur.nom },
-                                                    modifier = Modifier
-                                                        .align(Alignment.TopEnd)
-                                                        .padding(8.dp)
-                                                ) {
-                        Icon(
-                                                        imageVector = Icons.Default.Delete,
-                                                        contentDescription = "Supprimer",
-                                                        tint = MaterialTheme.colorScheme.error
+                                            operateurs.forEach { operateur ->
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                                    onClick = { 
+                                                        if (isEditingOperator) {
+                                                            onNavigateToForm("operateur/${operateur.id}")
+                                                        }
+                                                    },
+                                                    enabled = isEditingOperator,
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = if (isEditingOperator) 
+                                                            MaterialTheme.colorScheme.surface 
+                                                        else 
+                                                            MaterialTheme.colorScheme.surfaceVariant,
+                                                        contentColor = if (isEditingOperator) 
+                                                            MaterialTheme.colorScheme.onSurface 
+                                                        else 
+                                                            MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .padding(16.dp)
+                                                                .fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text(
+                                                                text = "${operateur.nom} • ${if (operateur.disponibleWeekend) "Disponible weekend" else "Non disponible weekend"} • ${operateur.diplomes.joinToString(", ")} • ${operateur.materielMaitrise.joinToString(", ")}",
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                modifier = Modifier.weight(1f)
+                                                            )
+                                                        }
+                                                        
+                                                        if (isEditingOperator) {
+                                                            IconButton(
+                                                                onClick = {
+                                                                    scope.launch {
+                                                                        viewModel.deleteOperateur(operateur)
+                                                                    }
+                                                                },
+                                                                modifier = Modifier
+                                                                    .align(Alignment.CenterEnd)
+                                                                    .padding(8.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.Delete,
+                                                                    contentDescription = "Supprimer",
+                                                                    tint = MaterialTheme.colorScheme.error
+                                                                )
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
+                                    } else {
+                                        Text(
+                                            text = "Aucun opérateur enregistré",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
                                     }
                                 }
                             }
                         }
+                    }
+                }
+
+                // Section Matériel de traitement
+                item {
+                    SectionCard(
+                        title = "Matériel de traitement",
+                        isExpanded = isMaterialExpanded,
+                        onExpandToggle = { isMaterialExpanded = !isMaterialExpanded },
+                        onAddClick = { onNavigateToForm("material") }
+                    ) {
+                        // Contenu vide pour l'instant
+                    }
+                }
+
+                // Section Parcelles
+                item {
+                    SectionCard(
+                        title = "Parcelles",
+                        isExpanded = isParcellesExpanded,
+                        onExpandToggle = { isParcellesExpanded = !isParcellesExpanded },
+                        onAddClick = { onNavigateToForm("parcelles") }
+                    ) {
+                        // Contenu vide pour l'instant
                     }
                 }
             }
         }
     )
-} 
+}
+

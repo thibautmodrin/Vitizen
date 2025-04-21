@@ -11,11 +11,12 @@ import com.vitizen.app.ui.screen.SignUpScreen
 import com.vitizen.app.ui.screen.SplashScreen
 import com.vitizen.app.ui.screen.TermsAndPrivacyScreen
 import com.vitizen.app.ui.screen.HomePage
-import com.vitizen.app.ui.screen.PulverisateurFormScreen
+import com.vitizen.app.ui.screen.InformationsGeneralesForm
 import com.vitizen.app.ui.viewmodel.SignInViewModel
 import com.vitizen.app.ui.viewmodel.SignUpViewModel
 import com.vitizen.app.ui.viewmodel.ParametresViewModel
 import com.vitizen.app.services.SecureCredentialsManager
+import com.vitizen.app.ui.screen.OperateurForm
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -107,17 +108,38 @@ fun MainNavigation(
             )
         }
 
-        composable(NavigationRoutes.PULVERISATEUR_FORM) { backStackEntry ->
-            val nom = backStackEntry.arguments?.getString("nom")
-            val pulverisateur = if (nom != "new") {
-                parametresViewModel.uiState.value.pulverisateurs.find { it.nom == nom }
-            } else {
-                null
-            }
-            PulverisateurFormScreen(
+        composable(NavigationRoutes.GENERAL_INFO_FORM) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
+            InformationsGeneralesForm(
+                viewModel = parametresViewModel,
                 onNavigateBack = { navController.navigateUp() },
-                initialPulverisateur = pulverisateur,
-                viewModel = parametresViewModel
+                infoId = id
+            )
+        }
+
+        composable("${NavigationRoutes.GENERAL_INFO_FORM}/{id}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
+            InformationsGeneralesForm(
+                viewModel = parametresViewModel,
+                onNavigateBack = { navController.navigateUp() },
+                infoId = id
+            )
+        }
+
+        composable(NavigationRoutes.OPERATEUR_FORM) { backStackEntry ->
+            OperateurForm(
+                viewModel = parametresViewModel,
+                onNavigateBack = { navController.navigateUp() },
+                operateurId = null
+            )
+        }
+
+        composable("${NavigationRoutes.OPERATEUR_FORM}/{id}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
+            OperateurForm(
+                viewModel = parametresViewModel,
+                onNavigateBack = { navController.navigateUp() },
+                operateurId = id
             )
         }
     }

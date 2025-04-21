@@ -203,9 +203,15 @@ fun HomePage(
                 1 -> SuiviScreen(suiviViewModel)
                 2 -> ParametresScreen(
                     viewModel = parametresViewModel,
-                    onNavigateToPulverisateurForm = { nom ->
-                        navController.navigate(NavigationRoutes.pulverisateurFormRoute(nom)) {
-                            launchSingleTop = true
+                    onNavigateToForm = { route ->
+                        when {
+                            route == "operateur" -> navController.navigate(NavigationRoutes.OPERATEUR_FORM)
+                            route.startsWith("operateur/") -> navController.navigate("${NavigationRoutes.OPERATEUR_FORM}/${route.substringAfter("operateur/")}")
+                            route == "generalInfo" -> navController.navigate(NavigationRoutes.GENERAL_INFO_FORM)
+                            route.startsWith("generalInfo/") -> navController.navigate("${NavigationRoutes.GENERAL_INFO_FORM}/${route.substringAfter("generalInfo/")}")
+                            route == "material" -> { /* Logique pour naviguer vers le formulaire matériel */ }
+                            route == "parcelles" -> { /* Logique pour naviguer vers le formulaire parcelles */ }
+                            else -> {}
                         }
                     }
                 )

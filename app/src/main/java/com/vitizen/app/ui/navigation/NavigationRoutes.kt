@@ -9,7 +9,7 @@ object NavigationRoutes {
     const val TERMS = "terms"
     const val PRIVACY = "privacy"
     const val PARAMETRES = "parametres"
-    const val PULVERISATEUR_FORM = "pulverisateur_form/{nom}"
+    const val GENERAL_INFO_FORM = "general_info_form"
+    const val OPERATEUR_FORM = "operateur_form"
 
-    fun pulverisateurFormRoute(nom: String) = "pulverisateur_form/$nom"
 } 
