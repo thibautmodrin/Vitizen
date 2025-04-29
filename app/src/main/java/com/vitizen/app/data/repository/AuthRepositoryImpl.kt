@@ -1,12 +1,14 @@
 package com.vitizen.app.data.repository
 
-import com.vitizen.app.data.datasource.RoomDataSource
-import com.vitizen.app.data.datasource.UserPreferencesManager
+import com.vitizen.app.data.local.datasource.RoomDataSource
+import com.vitizen.app.data.local.datasource.UserPreferencesManager
 import com.vitizen.app.domain.model.User
 import com.vitizen.app.domain.repository.AuthRepository
 import com.vitizen.app.domain.repository.FirebaseAuthService
-import com.vitizen.app.services.*
-import com.vitizen.app.services.Result
+import com.vitizen.app.domain.common.Result
+import com.vitizen.app.data.util.logging.Logger
+import com.vitizen.app.data.util.validation.EmailVerifier
+import com.vitizen.app.presentation.session.SessionManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject

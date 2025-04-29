@@ -1,7 +1,7 @@
 package com.vitizen.app.data.repository
 
-import com.vitizen.app.data.dao.PulverisateurDao
-import com.vitizen.app.data.entity.PulverisateurEntity
+import com.vitizen.app.data.local.dao.PulverisateurDao
+import com.vitizen.app.data.local.entity.PulverisateurEntity
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton

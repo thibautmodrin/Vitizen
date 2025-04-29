@@ -1,95 +1,126 @@
-@startuml Vitizen Business Flow
-
-skinparam ActivityBackgroundColor LightBlue
-skinparam ActivityBorderColor Blue
-skinparam ArrowColor DarkBlue
-skinparam ActivityDiamondBackgroundColor LightYellow
-skinparam ActivityDiamondBorderColor Orange
-
-|Utilisateur|
-start
-:Ouvre l'application;
-
-|#AntiqueWhite|Application|
-:Affiche SplashScreen;
-if (Session existante?) then (oui)
-  :Vérifier l'état de l'authentification;
-  if (Utilisateur connecté?) then (oui)
-    :Redirection vers HomePage;
-  else (non)
-    :Redirection vers SignInScreen;
-  endif
-else (non)
-  :Redirection vers SignInScreen;
-endif
-
-|Utilisateur|
-if (A un compte?) then (oui)
-  :Saisit email et mot de passe;
-  |Application|
-  :Tentative de connexion;
-  if (Identifiants valides?) then (oui)
-    if (Email vérifié?) then (oui)
-      :Connexion réussie;
-      :Afficher HomePage;
-    else (non)
-      :Envoyer email de vérification;
-      :Afficher message d'erreur\n"Vérifiez votre email";
-      :Déconnexion automatique;
-    endif
-  else (non)
-    :Afficher message d'erreur;
-    :Retour à SignInScreen;
-  endif
-
-else (non)
-  :Clic sur "Créer un compte";
-  |Application|
-  :Afficher SignUpScreen;
-  
-  |Utilisateur|
-  :Remplir formulaire d'inscription
-  - Nom
-  - Email
-  - Mot de passe
-  - Téléphone
-  - Accepter RGPD;
-  
-  |Application|
-  :Validation des données;
-  if (Données valides?) then (oui)
-    :Créer le compte;
-    :Envoyer email de vérification;
-    :Afficher message de succès;
-    :Redirection vers SignInScreen;
-  else (non)
-    :Afficher message d'erreur;
-    :Rester sur SignUpScreen;
-  endif
-endif
-
-|Utilisateur|
-if (Sur HomePage?) then (oui)
-  :Peut voir ses informations
-  - Email
-  - Nom
-  - Rôle;
-  
-  :Peut se déconnecter;
-  |Application|
-  if (Déconnexion?) then (oui)
-    :Effacer la session;
-    :Redirection vers SignInScreen;
-  endif
-endif
-
-stop
-
-legend right
-  |= Couleur |= Signification |
-  |<#LightBlue>| Actions système |
-  |<#LightYellow>| Décisions |
-  |<#White>| Actions utilisateur |
-endlegend
-
-@enduml 
+app/
+└── src/
+    └── main/
+        ├── java/
+        │   └── com/
+        │       └── yourapp/
+        │
+        │           ├── di/                           # Dependency Injection (Hilt)
+        │           │   ├── AppModule.kt
+        │           │   ├── NetworkModule.kt
+        │           │   └── AuthModule.kt
+        │
+        │           ├── presentation/                 # UI Layer
+        │           │   ├── MainActivity.kt
+        │           │   ├── App.kt
+        │           │
+        │           │   ├── session/                  # Session manager
+        │           │   │   └── SessionManager.kt
+        │           │
+        │           │   ├── screen/                   # Features
+        │           │   │   ├── auth/
+        │           │   │   │   ├── SignInScreen.kt
+        │           │   │   │   ├── SignUpScreen.kt
+        │           │   │   │   ├── AuthViewModel.kt
+        │           │   │   │   ├── AuthState.kt
+        │           │   │   │   └── AuthEvent.kt
+        │           │   │   │
+        │           │   │   ├── home/
+        │           │   │   │   ├── HomeScreen.kt
+        │           │   │   │   ├── HomeViewModel.kt
+        │           │   │   │   ├── HomeState.kt
+        │           │   │   │   ├── HomeEvent.kt
+        │           │   │   │   ├── navigation/
+        │           │   │   │   │   └── HomeNavGraph.kt
+        │           │   │   │   └── section/
+        │           │   │   │       ├── record/
+        │           │   │   │       │   ├── RecordScreen.kt
+        │           │   │   │       │   ├── RecordViewModel.kt
+        │           │   │   │       │   ├── RecordState.kt
+        │           │   │   │       │   └── RecordEvent.kt
+        │           │   │   │       ├── followup/
+        │           │   │   │       │   ├── FollowUpScreen.kt
+        │           │   │   │       │   ├── FollowUpViewModel.kt
+        │           │   │   │       │   ├── FollowUpState.kt
+        │           │   │   │       │   └── FollowUpEvent.kt
+        │           │   │   │       └── settings/
+        │           │   │   │           ├── SettingsScreen.kt
+        │           │   │   │           ├── SettingsViewModel.kt
+        │           │   │   │           ├── SettingsState.kt
+        │           │   │   │           └── SettingsEvent.kt
+        │           │   │   │
+        │           │   │   ├── chat/
+        │           │   │   │   ├── ChatScreen.kt
+        │           │   │   │   ├── ChatViewModel.kt
+        │           │   │   │   ├── ChatState.kt
+        │           │   │   │   └── ChatEvent.kt
+        │           │   │   │
+        │           │   │   ├── map/
+        │           │   │   │   ├── MapScreen.kt
+        │           │   │   │   ├── MapViewModel.kt
+        │           │   │   │   ├── MapState.kt
+        │           │   │   │   └── MapEvent.kt
+        │           │   │
+        │           │   ├── navigation/
+        │           │   │   ├── AppNavGraph.kt       # Global nav host
+        │           │   │   └── Screen.kt            # Sealed class with all routes
+        │           │   │
+        │           │   └── components/              # UI réutilisables
+        │           │       ├── PrimaryButton.kt
+        │           │       ├── InputField.kt
+        │           │       └── LoadingIndicator.kt
+        │
+        │           ├── domain/                      # Business rules
+        │           │   ├── model/
+        │           │   │   ├── User.kt
+        │           │   │   ├── Record.kt
+        │           │   │   ├── Plot.kt
+        │           │   │   └── Machine.kt
+        │           │   ├── repository/
+        │           │   │   ├── IAuthRepository.kt
+        │           │   │   ├── IRecordRepository.kt
+        │           │   │   └── IUserRepository.kt
+        │           │   └── usecase/
+        │           │       ├── SignInUseCase.kt
+        │           │       ├── SignUpUseCase.kt
+        │           │       ├── IsEmailVerifiedUseCase.kt
+        │           │       ├── SaveRecordUseCase.kt
+        │           │       └── GetUserUseCase.kt
+        │
+        │           ├── data/                        # Implémentation Firebase / Room / etc.
+        │           │   ├── repository/
+        │           │   │   ├── AuthRepository.kt
+        │           │   │   ├── RecordRepository.kt
+        │           │   │   └── UserRepository.kt
+        │           │   ├── local/
+        │           │   │   ├── dao/
+        │           │   │   │   ├── RecordDao.kt
+        │           │   │   │   └── UserDao.kt
+        │           │   │   ├── entity/
+        │           │   │   │   ├── RecordEntity.kt
+        │           │   │   │   └── UserEntity.kt
+        │           │   │   ├── database/
+        │           │   │   │   └── AppDatabase.kt
+        │           │   │   └── preference/
+        │           │   │       └── UserPreferences.kt
+        │           │   ├── remote/
+        │           │   │   ├── service/
+        │           │   │   │   ├── AuthService.kt
+        │           │   │   │   └── RecordService.kt
+        │           │   │   ├── dto/
+        │           │   │   │   ├── UserDto.kt
+        │           │   │   │   └── RecordDto.kt
+        │           │   │   └── firebase/
+        │           │   │       └── FirebaseAuthProvider.kt
+        │           │   └── mapper/
+        │           │       ├── UserMapper.kt
+        │           │       └── RecordMapper.kt
+        │
+        │           └── sync/
+        │               ├── SyncService.kt
+        │               └── SyncWorker.kt
+        │
+        └── res/
+            ├── layout/
+            ├── drawable/
+            └── values/

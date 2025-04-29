@@ -1,7 +1,7 @@
 package com.vitizen.app.domain.repository
 
 import com.vitizen.app.domain.model.User
-import com.vitizen.app.services.Result
+import com.vitizen.app.domain.common.Result
 import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {

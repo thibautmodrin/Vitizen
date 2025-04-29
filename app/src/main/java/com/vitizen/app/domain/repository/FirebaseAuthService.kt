@@ -1,7 +1,7 @@
 package com.vitizen.app.domain.repository
 
 import com.google.firebase.auth.FirebaseUser
-import com.vitizen.app.services.Result
+import com.vitizen.app.domain.common.Result
 
 interface FirebaseAuthService {
     suspend fun signIn(email: String, password: String): Result<FirebaseUser>

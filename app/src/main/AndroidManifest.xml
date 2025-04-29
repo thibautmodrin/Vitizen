@@ -34,7 +34,7 @@
         tools:ignore="HardcodedDebugMode">
 
         <activity
-            android:name="com.vitizen.app.MainActivity"
+            android:name="com.vitizen.app.presentation.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Vitizen"

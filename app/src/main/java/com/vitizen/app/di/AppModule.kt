@@ -1,27 +1,37 @@
 package com.vitizen.app.di
 
 import android.content.Context
-import androidx.room.Room
-import com.vitizen.app.data.datasource.RoomDataSource
-import com.vitizen.app.data.datasource.UserPreferencesManager
-import com.vitizen.app.data.database.AppDatabase
+import com.google.firebase.auth.FirebaseAuth
+import com.vitizen.app.data.local.dao.InformationsGeneralesDao
+import com.vitizen.app.data.local.dao.OperateurDao
+import com.vitizen.app.data.local.dao.ParcelleDao
+import com.vitizen.app.data.local.dao.PulverisateurDao
+import com.vitizen.app.data.local.dao.TreatmentDao
+import com.vitizen.app.data.local.database.AppDatabase
+import com.vitizen.app.data.local.datasource.RoomDataSource
+import com.vitizen.app.data.local.datasource.UserPreferencesManager
 import com.vitizen.app.data.local.dao.UserDao
 import com.vitizen.app.data.repository.AuthRepositoryImpl
 import com.vitizen.app.domain.repository.AuthRepository
 import com.vitizen.app.domain.repository.FirebaseAuthService
-import com.vitizen.app.services.*
-import com.vitizen.app.ui.navigation.NavigationManager
-import com.vitizen.app.ui.navigation.NavigationManagerImpl
-import com.google.firebase.auth.FirebaseAuth
-import com.vitizen.app.data.dao.InformationsGeneralesDao
-import com.vitizen.app.data.dao.OperateurDao
-import com.vitizen.app.data.dao.PulverisateurDao
-import com.vitizen.app.data.dao.TreatmentDao
+import com.vitizen.app.data.util.network.ConnectivityChecker
+import com.vitizen.app.data.util.validation.EmailVerifier
+import com.vitizen.app.data.remote.service.GoogleAuthService
+import com.vitizen.app.data.util.logging.Logger
+import com.vitizen.app.data.local.security.SecureCredentialsManager
+import com.vitizen.app.data.remote.service.ChatService
+import com.vitizen.app.data.repository.ChatRepositoryImpl
+import com.vitizen.app.domain.repository.IChatRepository
+import com.vitizen.app.presentation.session.SessionManager
+import com.vitizen.app.presentation.navigation.manager.NavigationManager
+import com.vitizen.app.presentation.navigation.manager.NavigationManagerImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
 
 @Module
@@ -51,23 +61,15 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
-        return Room.databaseBuilder(
-            context,
-            AppDatabase::class.java,
-            "vitizen_database"
-        )
-        .fallbackToDestructiveMigration()
-        .build()
+        return AppDatabase.Companion.getDatabase(context)
     }
 
     @Provides
-    @Singleton
     fun provideUserDao(database: AppDatabase): UserDao {
         return database.userDao()
     }
 
     @Provides
-    @Singleton
     fun provideRoomDataSource(userDao: UserDao): RoomDataSource {
         return RoomDataSource(userDao)
     }
@@ -135,26 +137,29 @@ object AppModule {
     }
 
     @Provides
-    @Singleton
-    fun provideInformationsGeneralesDao(database: AppDatabase): InformationsGeneralesDao {
-        return database.informationsGeneralesDao()
-    }
-
-    @Provides
-    @Singleton
-    fun provideOperateurDao(database: AppDatabase): OperateurDao {
-        return database.operateurDao()
-    }
-
-    @Provides
-    @Singleton
     fun provideTreatmentDao(database: AppDatabase): TreatmentDao {
         return database.treatmentDao()
     }
 
     @Provides
-    @Singleton
+    fun provideParcelleDao(database: AppDatabase): ParcelleDao {
+        return database.parcelleDao()
+    }
+
+    @Provides
+    fun provideInformationsGeneralesDao(database: AppDatabase): InformationsGeneralesDao {
+        return database.informationsGeneralesDao()
+    }
+
+    @Provides
     fun providePulverisateurDao(database: AppDatabase): PulverisateurDao {
         return database.pulverisateurDao()
     }
-} 
+
+    @Provides
+    fun provideOperateurDao(database: AppDatabase): OperateurDao {
+        return database.operateurDao()
+    }
+
+
+}

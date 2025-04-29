@@ -1,7 +1,7 @@
 package com.vitizen.app.data.repository
 
-import com.vitizen.app.data.dao.InformationsGeneralesDao
-import com.vitizen.app.data.entity.InformationsGeneralesEntity
+import com.vitizen.app.data.local.dao.InformationsGeneralesDao
+import com.vitizen.app.data.local.entity.InformationsGeneralesEntity
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
