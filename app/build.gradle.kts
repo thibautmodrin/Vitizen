@@ -15,8 +15,13 @@ android {
         applicationId = "com.vitizen.app"
         minSdk = 24
         targetSdk = 34
+<<<<<<< HEAD
         versionCode = 4
         versionName = "1.0.3"
+=======
+        versionCode = 3
+        versionName = "1.0.2"
+>>>>>>> ee2cf3c13e884d70f83bb0e859516dd23cbb9821
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
