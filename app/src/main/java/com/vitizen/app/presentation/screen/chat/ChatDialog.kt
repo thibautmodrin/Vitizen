@@ -258,7 +258,7 @@ fun TypingIndicator() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 12.dp, top = 4.dp, bottom = 4.dp),
+            .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.Start
     ) {
         Card(
