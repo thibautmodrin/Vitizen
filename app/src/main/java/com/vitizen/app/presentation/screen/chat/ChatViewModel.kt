@@ -40,10 +40,7 @@ class ChatViewModel @Inject constructor(
                         is WebSocketMessage.Start -> {
                             currentBotMessage.clear()
                             isFirstContent = true
-                            val updatedMessages = state.messages.toMutableList()
-                            updatedMessages.add(ChatMessage("bot", "", isUser = false))
                             state = state.copy(
-                                messages = updatedMessages,
                                 isTyping = true,
                                 isLoading = true
                             )
@@ -52,9 +49,14 @@ class ChatViewModel @Inject constructor(
                             if (isFirstContent) {
                                 isFirstContent = false
                                 state = state.copy(isTyping = false)
+                                val updatedMessages = state.messages.toMutableList()
+                                updatedMessages.add(ChatMessage("bot", message.content, isUser = false))
+                                state = state.copy(messages = updatedMessages)
+                                currentBotMessage.append(message.content)
+                            } else {
+                                currentBotMessage.append(message.content)
+                                updateBotMessage(currentBotMessage.toString())
                             }
-                            currentBotMessage.append(message.content)
-                            updateBotMessage(currentBotMessage.toString())
                         }
                         is WebSocketMessage.End -> {
                             finishTyping()
