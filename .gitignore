@@ -13,4 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
+/vitizen_chat
 

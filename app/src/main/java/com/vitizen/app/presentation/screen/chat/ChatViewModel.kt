@@ -1,59 +1,133 @@
 package com.vitizen.app.presentation.screen.chat
 
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitizen.app.domain.model.ChatMessage
 import com.vitizen.app.domain.repository.IChatRepository
+import com.vitizen.app.data.remote.websocket.WebSocketMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import javax.inject.Inject
-import kotlin.collections.plus
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: IChatRepository
 ) : ViewModel() {
-    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
-    val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    var state by mutableStateOf(ChatState())
+        private set
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    private var currentBotMessage = StringBuilder()
+    private var isFirstContent = true
 
-    fun sendMessage(message: String) {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-                _error.value = null
+    init {
+        connect()
+    }
 
-                // Ajouter le message de l'utilisateur
-                _messages.value = _messages.value + ChatMessage(message = message, isUser = true)
+    private fun connect() {
+        chatRepository.connect(
+            onMessage = { message ->
+                Log.d("ChatVM", "🧠 Message reçu: $message")
 
-                Log.d("ChatViewModel", "Envoi du message: $message")
-                chatRepository.sendMessage(message)
-                    .onSuccess { response ->
-                        Log.d("ChatViewModel", "Réponse reçue: ${response.message}")
-                        _messages.value = _messages.value + ChatMessage(
-                            message = response.message,
-                            isUser = false
-                        )
+                viewModelScope.launch {
+                    when (message) {
+                        is WebSocketMessage.Start -> {
+                            currentBotMessage.clear()
+                            isFirstContent = true
+                            val updatedMessages = state.messages.toMutableList()
+                            updatedMessages.add(ChatMessage("bot", "", isUser = false))
+                            state = state.copy(
+                                messages = updatedMessages,
+                                isTyping = true,
+                                isLoading = true
+                            )
+                        }
+                        is WebSocketMessage.Content -> {
+                            if (isFirstContent) {
+                                isFirstContent = false
+                                state = state.copy(isTyping = false)
+                            }
+                            currentBotMessage.append(message.content)
+                            updateBotMessage(currentBotMessage.toString())
+                        }
+                        is WebSocketMessage.End -> {
+                            finishTyping()
+                        }
                     }
-                    .onFailure { error ->
-                        Log.e("ChatViewModel", "Erreur lors de l'envoi du message", error)
-                        _error.value = error.message ?: "Une erreur est survenue"
-                    }
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "Exception lors de l'envoi du message", e)
-                _error.value = e.message ?: "Une erreur est survenue"
-            } finally {
-                _isLoading.value = false
+                }
+            },
+            onError = { error ->
+                state = state.copy(error = error, isLoading = false, isTyping = false)
+                currentBotMessage.clear()
             }
+        )
+    }
+
+    private fun updateBotMessage(content: String) {
+        val updatedMessages = state.messages.toMutableList()
+        if (updatedMessages.isNotEmpty() && !updatedMessages.last().isUser) {
+            updatedMessages[updatedMessages.lastIndex] = 
+                ChatMessage("bot", content, isUser = false)
+            state = state.copy(messages = updatedMessages)
         }
+    }
+
+    private fun finishTyping() {
+        state = state.copy(isLoading = false)
+    }
+
+    fun onMessageChanged(text: String) {
+        state = state.copy(currentInput = text)
+    }
+
+    fun sendMessage() {
+        val msg = state.currentInput.trim()
+        if (msg.isEmpty()) return
+
+        val updatedMessages = state.messages + ChatMessage("user", msg, isUser = true)
+        state = state.copy(
+            messages = updatedMessages,
+            currentInput = "",
+            isTyping = true,
+            isLoading = true
+        )
+
+        currentBotMessage.clear()
+
+        val jsonMessage = JSONObject().apply {
+            put("message", msg)
+        }.toString()
+
+        chatRepository.sendMessage(jsonMessage)
+    }
+
+    fun resetChat() {
+        // Déconnecter le WebSocket actuel
+        chatRepository.disconnect()
+        
+        // Réinitialiser l'état
+        state = state.copy(
+            messages = emptyList(),
+            currentInput = "",
+            isLoading = false,
+            error = null,
+            isTyping = false
+        )
+        currentBotMessage.clear()
+        isFirstContent = true
+        
+        // Reconnecter le WebSocket
+        connect()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        chatRepository.disconnect()
     }
 }

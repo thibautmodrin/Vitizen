@@ -1,0 +1,102 @@
+package com.vitizen.app.data.remote.websocket
+
+import android.util.Log
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+
+sealed class WebSocketMessage {
+    data class Start(val message: String = "") : WebSocketMessage()
+    data class Content(val content: String) : WebSocketMessage()
+    data class End(val message: String = "") : WebSocketMessage()
+}
+
+class ChatWebSocketListener(
+    private val onMessage: (WebSocketMessage) -> Unit,
+    private val onError: (String) -> Unit
+) : WebSocketListener() {
+
+    private val buffer = StringBuilder()
+    private var isReceivingMessage = false
+    private var lastSendTime = System.currentTimeMillis()
+    private val SEND_INTERVAL = 100L // Intervalle de 100ms entre les envois
+
+    override fun onOpen(webSocket: WebSocket, response: Response) {
+        Log.i("WebSocket", "✅ Connexion WebSocket ouverte")
+    }
+
+    override fun onMessage(webSocket: WebSocket, text: String) {
+        Log.d("WebSocket", "📥 Message reçu: $text")
+
+        try {
+            when (text.trim()) {
+                "[START]" -> {
+                    Log.d("WebSocket", "🚀 Début du message détecté")
+                    isReceivingMessage = true
+                    buffer.clear()
+                    lastSendTime = System.currentTimeMillis()
+                    onMessage(WebSocketMessage.Start())
+                }
+                "[STOP]" -> {
+                    Log.d("WebSocket", "🛑 Fin du message détectée")
+                    if (isReceivingMessage) {
+                        val finalContent = buffer.toString().trim()
+                        if (finalContent.isNotEmpty()) {
+                            Log.d("WebSocket", "📤 Envoi du contenu final: $finalContent")
+                            onMessage(WebSocketMessage.Content(finalContent))
+                        }
+                        onMessage(WebSocketMessage.End())
+                        buffer.clear()
+                        isReceivingMessage = false
+                    }
+                }
+                else -> {
+                    if (isReceivingMessage && text.isNotBlank()) {
+                        Log.d("WebSocket", "📝 Ajout au buffer: $text")
+                        buffer.append(text)
+                        
+                        // Vérifier si on doit envoyer le contenu accumulé
+                        val currentTime = System.currentTimeMillis()
+                        if (currentTime - lastSendTime >= SEND_INTERVAL) {
+                            val content = buffer.toString()
+                            if (content.isNotEmpty()) {
+                                Log.d("WebSocket", "📤 Envoi du contenu accumulé: $content")
+                                onMessage(WebSocketMessage.Content(content))
+                                buffer.clear()
+                                lastSendTime = currentTime
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("WebSocket", "❌ Erreur lors du traitement du message", e)
+            onError("Erreur lors du traitement du message: ${e.localizedMessage}")
+            buffer.clear()
+            isReceivingMessage = false
+            onMessage(WebSocketMessage.End())
+        }
+    }
+
+    override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+        Log.w("WebSocket", "🛑 Fermeture WebSocket en cours: $reason ($code)")
+        if (isReceivingMessage) {
+            onMessage(WebSocketMessage.End())
+            isReceivingMessage = false
+        }
+    }
+
+    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+        Log.i("WebSocket", "✅ WebSocket fermée proprement: $reason ($code)")
+    }
+
+    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+        val errorMsg = "❌ Erreur WebSocket: ${t.localizedMessage}"
+        Log.e("WebSocket", errorMsg, t)
+        onError(errorMsg)
+        if (isReceivingMessage) {
+            onMessage(WebSocketMessage.End())
+            isReceivingMessage = false
+        }
+    }
+}

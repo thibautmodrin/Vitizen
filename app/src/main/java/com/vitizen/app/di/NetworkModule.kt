@@ -9,8 +9,12 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.Interceptor
+import okhttp3.Response
+import okhttp3.Protocol
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -23,8 +27,28 @@ object NetworkModule {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
+        val connectionInterceptor = object : Interceptor {
+            override fun intercept(chain: Interceptor.Chain): Response {
+                val originalRequest = chain.request()
+                val newRequest = originalRequest.newBuilder()
+                    .header("Connection", "close")
+                    .header("Upgrade-Insecure-Requests", "1")
+                    .build()
+                return chain.proceed(newRequest)
+            }
+        }
+
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .addInterceptor(connectionInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .protocols(listOf(Protocol.HTTP_1_1))
+            .retryOnConnectionFailure(true)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.MILLISECONDS))
             .build()
     }
 
@@ -40,7 +64,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideChatRepository(chatService: ChatService): IChatRepository {
-        return ChatRepositoryImpl(chatService)
+    fun provideChatRepository(): IChatRepository {
+        return ChatRepositoryImpl()
     }
+
 }
