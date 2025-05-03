@@ -24,7 +24,8 @@ class ChatWebSocketListener(
     private val buffer = StringBuilder()
     private var isReceivingMessage = false
     private var lastSendTime = System.currentTimeMillis()
-    private val SEND_INTERVAL = 50L // Réduit à 50ms pour un défilement plus fluide
+    private val SEND_INTERVAL = 100L // Augmenté à 100ms pour réduire la fréquence des mises à jour
+    private val MIN_CONTENT_LENGTH = 10 // Longueur minimale du contenu avant envoi
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
         Log.i("WebSocket", "✅ Connexion WebSocket ouverte")
@@ -62,7 +63,7 @@ class ChatWebSocketListener(
                         buffer.append(text)
                         
                         val currentTime = System.currentTimeMillis()
-                        if (currentTime - lastSendTime >= SEND_INTERVAL) {
+                        if (currentTime - lastSendTime >= SEND_INTERVAL && buffer.length >= MIN_CONTENT_LENGTH) {
                             val content = buffer.toString()
                             if (content.isNotEmpty()) {
                                 Log.d("WebSocket", "📤 Envoi du contenu accumulé: $content")

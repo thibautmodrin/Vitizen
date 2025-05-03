@@ -48,7 +48,10 @@ class ChatViewModel @Inject constructor(
                         is WebSocketMessage.Content -> {
                             if (appendBotMessage.isFirst()) {
                                 appendBotMessage.markStarted()
-                                val updatedMessages = _state.value.messages + ChatMessage("bot", message.content, isUser = false)
+                                val updatedMessages = _state.value.messages + ChatMessage(
+                                    message = message.content,
+                                    isUser = false
+                                )
                                 _state.update { it.copy(
                                     messages = updatedMessages,
                                     isTyping = false,
@@ -110,7 +113,10 @@ class ChatViewModel @Inject constructor(
         _state.update { currentState ->
             val updatedMessages = currentState.messages.toMutableList()
             if (updatedMessages.isNotEmpty() && !updatedMessages.last().isUser) {
-                updatedMessages[updatedMessages.lastIndex] = ChatMessage("bot", content, isUser = false)
+                updatedMessages[updatedMessages.lastIndex] = ChatMessage(
+                    message = content,
+                    isUser = false
+                )
                 currentState.copy(
                     messages = updatedMessages,
                     lastMessageContent = content

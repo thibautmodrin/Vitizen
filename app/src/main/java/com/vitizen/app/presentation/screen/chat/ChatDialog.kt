@@ -20,7 +20,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.vitizen.app.domain.model.ChatMessage
-
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,16 +32,36 @@ fun ChatDialog(
     var messageText by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsState()
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
-
-    // Défilement automatique basé sur le contenu du dernier message
-    LaunchedEffect(state.messages.lastOrNull()?.message) {
-        try {
-            if (state.messages.isNotEmpty()) {
-                listState.scrollToItem(state.messages.lastIndex)
+    // Défilement automatique à chaque nouveau message
+    LaunchedEffect(state.messages.size) {
+        if (state.messages.isNotEmpty()) {
+            scope.launch {
+                try {
+                    // Attendre que la liste soit prête
+                    delay(100)
+                    // Forcer le défilement vers le dernier élément
+                    listState.animateScrollToItem(state.messages.lastIndex)
+                } catch (e: Exception) {
+                    // En cas d'erreur, essayer un défilement immédiat
+                    listState.scrollToItem(state.messages.lastIndex)
+                }
             }
-        } catch (e: Exception) {
-            // Ignorer les erreurs de défilement
+        }
+    }
+
+    // Observer le contenu du dernier message avec debounce
+    LaunchedEffect(state.lastMessageContent) {
+        if (state.messages.isNotEmpty() && state.lastMessageContent != null) {
+            scope.launch {
+                try {
+                    delay(150) // Augmenté pour réduire la fréquence des mises à jour
+                    listState.animateScrollToItem(state.messages.lastIndex)
+                } catch (e: Exception) {
+                    listState.scrollToItem(state.messages.lastIndex)
+                }
+            }
         }
     }
 
@@ -119,9 +140,13 @@ fun ChatDialog(
                         .weight(1f)
                         .fillMaxWidth(),
                     state = listState,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(state.messages) { message ->
+                    items(
+                        items = state.messages,
+                        key = { it.id }
+                    ) { message ->
                         MessageItem(message = message)
                     }
                     if (state.isTyping) {
@@ -147,9 +172,9 @@ fun ChatDialog(
                         placeholder = { Text("Votre message...") },
                         enabled = !state.isLoading && state.connectionStatus is ChatState.ConnectionStatus.Connected,
                         colors = OutlinedTextFieldDefaults.colors(
-                                disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                            )
+                            disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        )
                     )
 
                     IconButton(
@@ -224,7 +249,9 @@ fun MessageItem(message: ChatMessage) {
         ) {
             Text(
                 text = message.message,
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier
+                    .padding(12.dp)
+                    .fillMaxWidth(),
                 color = if (message.isUser)
                     MaterialTheme.colorScheme.onPrimary
                 else
