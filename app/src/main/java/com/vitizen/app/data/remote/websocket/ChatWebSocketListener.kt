@@ -4,11 +4,16 @@ import android.util.Log
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 
 sealed class WebSocketMessage {
     data class Start(val message: String = "") : WebSocketMessage()
     data class Content(val content: String) : WebSocketMessage()
     data class End(val message: String = "") : WebSocketMessage()
+    data class ConnectionEstablished(val response: Response) : WebSocketMessage()
+    data class ConnectionClosed(val code: Int, val reason: String) : WebSocketMessage()
+    data class ConnectionError(val error: String) : WebSocketMessage()
 }
 
 class ChatWebSocketListener(
@@ -19,10 +24,11 @@ class ChatWebSocketListener(
     private val buffer = StringBuilder()
     private var isReceivingMessage = false
     private var lastSendTime = System.currentTimeMillis()
-    private val SEND_INTERVAL = 100L // Intervalle de 100ms entre les envois
+    private val SEND_INTERVAL = 50L // Réduit à 50ms pour un défilement plus fluide
 
     override fun onOpen(webSocket: WebSocket, response: Response) {
         Log.i("WebSocket", "✅ Connexion WebSocket ouverte")
+        onMessage(WebSocketMessage.ConnectionEstablished(response))
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) {
@@ -55,7 +61,6 @@ class ChatWebSocketListener(
                         Log.d("WebSocket", "📝 Ajout au buffer: $text")
                         buffer.append(text)
                         
-                        // Vérifier si on doit envoyer le contenu accumulé
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastSendTime >= SEND_INTERVAL) {
                             val content = buffer.toString()
@@ -84,10 +89,12 @@ class ChatWebSocketListener(
             onMessage(WebSocketMessage.End())
             isReceivingMessage = false
         }
+        onMessage(WebSocketMessage.ConnectionClosed(code, reason))
     }
 
     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
         Log.i("WebSocket", "✅ WebSocket fermée proprement: $reason ($code)")
+        onMessage(WebSocketMessage.ConnectionClosed(code, reason))
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -98,5 +105,6 @@ class ChatWebSocketListener(
             onMessage(WebSocketMessage.End())
             isReceivingMessage = false
         }
+        onMessage(WebSocketMessage.ConnectionError(errorMsg))
     }
 }

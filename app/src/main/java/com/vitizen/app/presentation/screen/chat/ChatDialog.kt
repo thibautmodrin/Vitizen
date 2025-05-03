@@ -1,6 +1,5 @@
 package com.vitizen.app.presentation.screen.chat
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,36 +7,36 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.vitizen.app.domain.model.ChatMessage
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatDialog(
     viewModel: ChatViewModel,
     onDismiss: () -> Unit
 ) {
     var messageText by remember { mutableStateOf("") }
-    val state = viewModel.state
+    val state by viewModel.state.collectAsState()
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
+
 
     // Défilement automatique basé sur le contenu du dernier message
     LaunchedEffect(state.messages.lastOrNull()?.message) {
         try {
             if (state.messages.isNotEmpty()) {
-                // Défilement immédiat à chaque mise à jour du contenu
                 listState.scrollToItem(state.messages.lastIndex)
             }
         } catch (e: Exception) {
@@ -60,41 +59,61 @@ fun ChatDialog(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                // En-tête du chat avec bouton de réinitialisation
+                // En-tête avec statut de connexion et bouton reset
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(12.dp),
+                        .padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Vitizen Assistant",
-                        style = MaterialTheme.typography.titleLarge,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        style = MaterialTheme.typography.titleLarge
                     )
-                    IconButton(
-                        onClick = { viewModel.resetChat() },
-                        modifier = Modifier.padding(start = 8.dp),
-                        enabled = !state.isLoading && !state.isTyping
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Réinitialiser le chat",
-                            tint = if (state.isLoading || state.isTyping) 
-                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.38f)
-                            else 
-                                MaterialTheme.colorScheme.onPrimaryContainer
+                            imageVector = when (state.connectionStatus) {
+                                is ChatState.ConnectionStatus.Connected -> Icons.Default.Wifi
+                                is ChatState.ConnectionStatus.Connecting -> Icons.Default.Wifi
+                                else -> Icons.Default.WifiOff
+                            },
+                            contentDescription = "Statut de connexion",
+                            tint = when (state.connectionStatus) {
+                                is ChatState.ConnectionStatus.Connected -> MaterialTheme.colorScheme.primary
+                                is ChatState.ConnectionStatus.Connecting -> MaterialTheme.colorScheme.tertiary
+                                else -> MaterialTheme.colorScheme.error
+                            }
                         )
+                        IconButton(
+                            onClick = { viewModel.resetChat() },
+                            enabled = !state.isLoading && !state.isTyping,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(
+                                    if (!state.isLoading && !state.isTyping)
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    else
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                )
+                        ) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Réinitialiser la conversation",
+                                tint = if (!state.isLoading && !state.isTyping)
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
                     }
                 }
 
-                // Zone des messages
+                // Messages
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
@@ -103,99 +122,73 @@ fun ChatDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(state.messages) { message ->
-                        MessageItem(message)
+                        MessageItem(message = message)
                     }
                     if (state.isTyping) {
-                        item { TypingIndicator() }
-                    }
-                }
-
-                // Message d'erreur
-                AnimatedVisibility(
-                    visible = state.error != null,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    state.error?.let { errorMessage ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        ) {
-                            Text(
-                                text = errorMessage,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(12.dp)
-                            )
+                        item {
+                            TypingIndicator()
                         }
                     }
                 }
 
                 // Zone de saisie
-                Card(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
+                    OutlinedTextField(
+                        value = messageText,
+                        onValueChange = { messageText = it },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextField(
-                            value = messageText,
-                            onValueChange = { messageText = it },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("Posez votre question...") },
-                            enabled = !state.isLoading,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            shape = RoundedCornerShape(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(
-                            onClick = {
-                                if (messageText.isNotBlank()) {
-                                    viewModel.onMessageChanged(messageText)
-                                    viewModel.sendMessage()
-                                    messageText = ""
-                                }
-                            },
-                            enabled = !state.isLoading,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(
-                                    if (!state.isLoading) 
-                                        MaterialTheme.colorScheme.primary 
-                                    else 
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                )
-                        ) {
-                            if (state.isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Default.Send,
-                                    contentDescription = "Envoyer",
-                                    tint = MaterialTheme.colorScheme.onPrimary
-                                )
+                            .weight(1f)
+                            .padding(end = 8.dp),
+                        placeholder = { Text("Votre message...") },
+                        enabled = !state.isLoading && state.connectionStatus is ChatState.ConnectionStatus.Connected,
+                        colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            )
+                    )
+
+                    IconButton(
+                        onClick = {
+                            if (messageText.isNotBlank()) {
+                                viewModel.onMessageChanged(messageText)
+                                viewModel.sendMessage()
+                                messageText = ""
                             }
+                        },
+                        enabled = messageText.isNotBlank() && !state.isLoading && 
+                                 state.connectionStatus is ChatState.ConnectionStatus.Connected,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(
+                                if (messageText.isNotBlank() && !state.isLoading && 
+                                    state.connectionStatus is ChatState.ConnectionStatus.Connected) 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            )
+                    ) {
+                        if (state.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Envoyer",
+                                tint = if (messageText.isNotBlank() && 
+                                         state.connectionStatus is ChatState.ConnectionStatus.Connected) 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
                         }
                     }
                 }
@@ -243,36 +236,33 @@ fun MessageItem(message: ChatMessage) {
 
 @Composable
 fun TypingIndicator() {
-    val dots = remember { mutableStateOf(".") }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(500)
-            dots.value = when (dots.value) {
-                "." -> ".."
-                ".." -> "..."
-                else -> "."
-            }
-        }
-    }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.Start
     ) {
         Card(
+            modifier = Modifier
+                .widthIn(max = 100.dp)
+                .padding(4.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text(
-                text = "Vitizen est en train d'écrire${dots.value}",
-                modifier = Modifier.padding(12.dp),
-                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                repeat(3) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(8.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
         }
     }
 }
