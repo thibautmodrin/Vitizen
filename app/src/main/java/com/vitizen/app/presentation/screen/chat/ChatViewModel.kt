@@ -20,7 +20,21 @@ class ChatViewModel @Inject constructor(
     private val chatRepository: IChatRepository
 ) : ViewModel() {
 
-    var state by mutableStateOf(ChatState())
+    var state by mutableStateOf(ChatState(
+        messages = listOf(
+            ChatMessage(
+                "bot",
+                "Bonjour ! Je suis Vitizen, votre assistant viticole. Je peux vous aider à répondre à vos questions techniques sur :\n\n" +
+                "• Les traitements phytosanitaires\n" +
+                "• Le matériel et les équipements\n" +
+                "• Les produits et leur utilisation\n" +
+                "• Les réglages et la maintenance\n" +
+                "• Les bonnes pratiques viticoles\n\n" +
+                "N'hésitez pas à me poser vos questions !",
+                isUser = false
+            )
+        )
+    ))
         private set
 
     private var currentBotMessage = StringBuilder()
@@ -92,21 +106,31 @@ class ChatViewModel @Inject constructor(
         val msg = state.currentInput.trim()
         if (msg.isEmpty()) return
 
-        val updatedMessages = state.messages + ChatMessage("user", msg, isUser = true)
-        state = state.copy(
-            messages = updatedMessages,
-            currentInput = "",
-            isTyping = true,
-            isLoading = true
-        )
+        viewModelScope.launch {
+            // Afficher d'abord le message de l'utilisateur
+            val updatedMessages = state.messages + ChatMessage("user", msg, isUser = true)
+            state = state.copy(
+                messages = updatedMessages,
+                currentInput = ""
+            )
 
-        currentBotMessage.clear()
+            currentBotMessage.clear()
 
-        val jsonMessage = JSONObject().apply {
-            put("message", msg)
-        }.toString()
+            // Attendre 800ms avant d'afficher l'indicateur de chargement
+            delay(400)
+            
+            // Afficher l'indicateur de chargement
+            state = state.copy(
+                isTyping = true,
+                isLoading = true
+            )
 
-        chatRepository.sendMessage(jsonMessage)
+            val jsonMessage = JSONObject().apply {
+                put("message", msg)
+            }.toString()
+
+            chatRepository.sendMessage(jsonMessage)
+        }
     }
 
     fun resetChat() {

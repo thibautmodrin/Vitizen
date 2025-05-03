@@ -48,7 +48,7 @@ fun ChatDialog(
                 .height(600.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
             Column(
@@ -94,10 +94,7 @@ fun ChatDialog(
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        .padding(8.dp),
+                        .fillMaxWidth(),
                     state = listState,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
