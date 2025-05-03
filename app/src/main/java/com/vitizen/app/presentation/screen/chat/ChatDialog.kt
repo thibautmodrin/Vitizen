@@ -33,11 +33,15 @@ fun ChatDialog(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) {
-            scope.launch {
-                listState.animateScrollToItem(state.messages.lastIndex)
+    // Défilement automatique basé sur le contenu du dernier message
+    LaunchedEffect(state.messages.lastOrNull()?.message) {
+        try {
+            if (state.messages.isNotEmpty()) {
+                // Défilement immédiat à chaque mise à jour du contenu
+                listState.scrollToItem(state.messages.lastIndex)
             }
+        } catch (e: Exception) {
+            // Ignorer les erreurs de défilement
         }
     }
 
