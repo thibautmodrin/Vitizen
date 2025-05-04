@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.vitizen.app.domain.model.ChatMessage
+import com.vitizen.app.presentation.screen.chat.components.VoiceInputButton
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -175,6 +176,13 @@ fun ChatDialog(
                             disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                         )
+                    )
+
+                    VoiceInputButton(
+                        isListening = state.isListening,
+                        onStartListening = { viewModel.toggleVoiceInput() },
+                        onStopListening = { viewModel.toggleVoiceInput() },
+                        modifier = Modifier.padding(end = 8.dp)
                     )
 
                     IconButton(

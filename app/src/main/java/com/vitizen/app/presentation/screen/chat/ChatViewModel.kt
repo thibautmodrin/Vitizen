@@ -3,6 +3,8 @@ package com.vitizen.app.presentation.screen.chat
 import androidx.lifecycle.viewModelScope
 import com.vitizen.app.data.remote.websocket.WebSocketMessage
 import com.vitizen.app.domain.model.ChatMessage
+import com.vitizen.app.domain.model.SpeechRecognitionModel
+import com.vitizen.app.domain.repository.ISpeechRepository
 import com.vitizen.app.domain.usecase.*
 import com.vitizen.app.presentation.viewmodel.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +21,10 @@ class ChatViewModel @Inject constructor(
     private val sendChatMessage: SendChatMessageUseCase,
     private val connectToChat: ConnectToChatUseCase,
     private val disconnectChat: DisconnectChatUseCase,
-    private val appendBotMessage: AppendBotMessageUseCase
+    private val appendBotMessage: AppendBotMessageUseCase,
+    private val startSpeechRecognition: StartSpeechRecognitionUseCase,
+    private val stopSpeechRecognition: StopSpeechRecognitionUseCase,
+    private val speechRepository: ISpeechRepository
 ) : BaseViewModel<ChatState, ChatEvent>() {
 
     private val _state = MutableStateFlow(ChatState.Initial)
@@ -27,6 +32,34 @@ class ChatViewModel @Inject constructor(
 
     init {
         connect()
+        observeSpeechRecognition()
+    }
+
+    private fun observeSpeechRecognition() {
+        viewModelScope.launch {
+            speechRepository.getRecognitionResults().collect { result ->
+                if (result.isFinal && result.text.isNotBlank()) {
+                    _state.update { it.copy(currentInput = result.text) }
+                    sendMessage()
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            speechRepository.isListening().collect { isListening ->
+                _state.update { it.copy(isListening = isListening) }
+            }
+        }
+    }
+
+    fun toggleVoiceInput() {
+        viewModelScope.launch {
+            if (_state.value.isListening) {
+                stopSpeechRecognition()
+            } else {
+                startSpeechRecognition()
+            }
+        }
     }
 
     private fun connect() {

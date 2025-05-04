@@ -16,6 +16,9 @@
     
     <uses-permission android:name="android.permission.CREDENTIALS_MANAGER" />
     
+    <!-- Permission pour l'enregistrement audio -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    
     <application
         android:name="com.vitizen.app.VitizenApplication"
         android:allowBackup="true"

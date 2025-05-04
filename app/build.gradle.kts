@@ -95,6 +95,14 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.security:security-crypto-ktx:1.1.0-alpha06")
 
+    // Vosk pour la reconnaissance vocale
+    implementation("com.alphacephei:vosk-android:0.3.47")
+    implementation("net.java.dev.jna:jna:5.13.0@aar")
+    implementation("org.tensorflow:tensorflow-lite:2.9.0")
+    
+    // Pour la gestion des permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+
     // Tests
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
