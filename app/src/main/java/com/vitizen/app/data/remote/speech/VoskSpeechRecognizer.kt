@@ -3,10 +3,8 @@ package com.vitizen.app.data.remote.speech
 import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioRecord
-import android.media.MediaRecorder
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -164,7 +162,7 @@ class VoskSpeechRecognizer(
                 try {
                     // Utiliser StorageService pour extraire le modèle
                     StorageService.unpack(context, "vosk-model-small-fr-0.22", "model",
-                        { model ->
+                        { model: Model ->
                             try {
                                 this@VoskSpeechRecognizer.model = model
                                 recognizer = Recognizer(model, sampleRate.toFloat())
@@ -176,7 +174,7 @@ class VoskSpeechRecognizer(
                                 continuation.resumeWithException(e)
                             }
                         },
-                        { exception ->
+                        { exception: Exception? ->
                             Log.e("VoskSpeechRecognizer", "❌ Erreur lors de l'extraction du modèle", exception)
                             continuation.resumeWithException(exception ?: IOException("Erreur inconnue lors de l'extraction du modèle"))
                         }
