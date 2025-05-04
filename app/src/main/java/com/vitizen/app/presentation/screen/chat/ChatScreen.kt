@@ -1,6 +1,7 @@
 package com.vitizen.app.presentation.screen.chat
 
 import android.Manifest
+import android.util.Log
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,6 +25,7 @@ fun ChatScreen(
     val recordAudioPermission = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
 
     LaunchedEffect(Unit) {
+        Log.d("ChatScreen", "État de la permission audio: ${recordAudioPermission.status.isGranted}")
         if (!recordAudioPermission.status.isGranted) {
             showPermissionDialog = true
         }

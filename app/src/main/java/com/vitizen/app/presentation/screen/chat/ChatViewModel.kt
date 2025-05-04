@@ -1,5 +1,6 @@
 package com.vitizen.app.presentation.screen.chat
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.vitizen.app.data.remote.websocket.WebSocketMessage
 import com.vitizen.app.domain.model.ChatMessage
@@ -33,20 +34,37 @@ class ChatViewModel @Inject constructor(
     init {
         connect()
         observeSpeechRecognition()
+        initializeSpeechRecognition()
+    }
+
+    private fun initializeSpeechRecognition() {
+        viewModelScope.launch {
+            try {
+                speechRepository.initialize()
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "❌ Erreur lors de l'initialisation de la reconnaissance vocale", e)
+            }
+        }
     }
 
     private fun observeSpeechRecognition() {
         viewModelScope.launch {
             speechRepository.getRecognitionResults().collect { result ->
+                Log.d("ChatViewModel", "Reçu résultat de reconnaissance: $result")
                 if (result.isFinal && result.text.isNotBlank()) {
+                    Log.d("ChatViewModel", "Traitement du résultat final: ${result.text}")
                     _state.update { it.copy(currentInput = result.text) }
                     sendMessage()
+                } else if (!result.isFinal && result.text.isNotBlank()) {
+                    Log.d("ChatViewModel", "Mise à jour du texte partiel: ${result.text}")
+                    _state.update { it.copy(currentInput = result.text) }
                 }
             }
         }
 
         viewModelScope.launch {
             speechRepository.isListening().collect { isListening ->
+                Log.d("ChatViewModel", "État d'écoute changé: $isListening")
                 _state.update { it.copy(isListening = isListening) }
             }
         }
@@ -57,7 +75,14 @@ class ChatViewModel @Inject constructor(
             if (_state.value.isListening) {
                 stopSpeechRecognition()
             } else {
-                startSpeechRecognition()
+                try {
+                    // Réessayer l'initialisation si nécessaire
+                    speechRepository.initialize()
+                    startSpeechRecognition()
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "❌ Erreur lors de l'initialisation de la reconnaissance vocale", e)
+                    _state.update { it.copy(error = "Erreur lors de l'initialisation de la reconnaissance vocale") }
+                }
             }
         }
     }
