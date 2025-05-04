@@ -176,55 +176,44 @@ fun ChatDialog(
                         colors = OutlinedTextFieldDefaults.colors(
                             disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                    )
-
-                    VoiceRecognitionButton(
-                        viewModel = voiceRecognitionViewModel,
-                        onTranscriptionComplete = { text ->
-                            messageText = text
-                        }
-                    )
-
-                    IconButton(
-                        onClick = {
-                            if (messageText.isNotBlank()) {
-                                viewModel.onMessageChanged(messageText)
-                                viewModel.sendMessage()
-                                messageText = ""
+                        ),
+                        trailingIcon = {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                VoiceRecognitionButton(
+                                    viewModel = voiceRecognitionViewModel,
+                                    modifier = Modifier.size(36.dp),
+                                    onTranscriptionComplete = { text ->
+                                        messageText = text
+                                    }
+                                )
+                                IconButton(
+                                    onClick = {
+                                        if (messageText.isNotBlank()) {
+                                            viewModel.onMessageChanged(messageText)
+                                            viewModel.sendMessage()
+                                            messageText = ""
+                                        }
+                                    },
+                                    enabled = messageText.isNotBlank() && !state.isLoading && 
+                                             state.connectionStatus is ChatState.ConnectionStatus.Connected,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Send,
+                                        contentDescription = "Envoyer",
+                                        tint = if (messageText.isNotBlank() && !state.isLoading && 
+                                                 state.connectionStatus is ChatState.ConnectionStatus.Connected) 
+                                            MaterialTheme.colorScheme.primary 
+                                        else 
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                    )
+                                }
                             }
-                        },
-                        enabled = messageText.isNotBlank() && !state.isLoading && 
-                                 state.connectionStatus is ChatState.ConnectionStatus.Connected,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(
-                                if (messageText.isNotBlank() && !state.isLoading && 
-                                    state.connectionStatus is ChatState.ConnectionStatus.Connected) 
-                                    MaterialTheme.colorScheme.primary 
-                                else 
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                    ) {
-                        if (state.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Envoyer",
-                                tint = if (messageText.isNotBlank() && 
-                                         state.connectionStatus is ChatState.ConnectionStatus.Connected) 
-                                    MaterialTheme.colorScheme.onPrimary 
-                                else 
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            )
                         }
-                    }
+                    )
                 }
             }
         }
