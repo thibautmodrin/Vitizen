@@ -31,6 +31,8 @@ class ChatViewModel @Inject constructor(
     private val _state = MutableStateFlow(ChatState.Initial)
     val state: StateFlow<ChatState> = _state.asStateFlow()
 
+    private var messageText = ""
+
     init {
         connect()
         observeSpeechRecognition()
@@ -51,13 +53,10 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             speechRepository.getRecognitionResults().collect { result ->
                 Log.d("ChatViewModel", "Reçu résultat de reconnaissance: $result")
-                if (result.isFinal && result.text.isNotBlank()) {
-                    Log.d("ChatViewModel", "Traitement du résultat final: ${result.text}")
+                if (result.text.isNotBlank()) {
+                    Log.d("ChatViewModel", "Mise à jour du texte: ${result.text}")
                     _state.update { it.copy(currentInput = result.text) }
-                    sendMessage()
-                } else if (!result.isFinal && result.text.isNotBlank()) {
-                    Log.d("ChatViewModel", "Mise à jour du texte partiel: ${result.text}")
-                    _state.update { it.copy(currentInput = result.text) }
+                    messageText = result.text
                 }
             }
         }
@@ -191,20 +190,25 @@ class ChatViewModel @Inject constructor(
     }
 
     fun onMessageChanged(text: String) {
+        messageText = text
         _state.update { it.copy(currentInput = text) }
     }
 
     fun sendMessage() {
-        val msg = _state.value.currentInput.trim()
+        val msg = messageText.trim()
         if (msg.isEmpty()) return
 
         viewModelScope.launch {
-            val updatedMessages = _state.value.messages + ChatMessage("user", msg, isUser = true)
+            val updatedMessages = _state.value.messages + ChatMessage(
+                message = msg,
+                isUser = true
+            )
             _state.update { it.copy(
                 messages = updatedMessages,
                 currentInput = "",
                 lastMessageContent = msg
             )}
+            messageText = ""
 
             appendBotMessage.reset()
             setEvent(ChatEvent.MessageSent(msg))

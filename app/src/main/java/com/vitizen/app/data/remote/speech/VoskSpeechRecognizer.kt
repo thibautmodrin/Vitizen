@@ -245,47 +245,51 @@ class VoskSpeechRecognizer(
         model = null
     }
 
-    override fun onPartialResult(hypothesis: String?) {
-        hypothesis?.let {
-            Log.d("VoskSpeechRecognizer", "Résultat partiel: $it")
-            coroutineScope.launch {
-                _recognitionResults.emit(
-                    SpeechRecognitionResult(
-                        text = it,
-                        isFinal = false,
-                        confidence = 0.0f
-                    )
-                )
+    override fun onResult(hypothesis: String) {
+        coroutineScope.launch {
+            try {
+                // Ne rien faire pour les résultats intermédiaires
+                Log.d("VoskSpeechRecognizer", "📝 Résultat intermédiaire reçu: $hypothesis")
+            } catch (e: Exception) {
+                Log.e("VoskSpeechRecognizer", "❌ Erreur lors de l'émission du résultat intermédiaire", e)
             }
         }
     }
 
-    override fun onResult(hypothesis: String?) {
-        hypothesis?.let {
-            Log.d("VoskSpeechRecognizer", "Résultat final: $it")
-            coroutineScope.launch {
-                _recognitionResults.emit(
-                    SpeechRecognitionResult(
-                        text = it,
+    override fun onFinalResult(hypothesis: String) {
+        coroutineScope.launch {
+            try {
+                // Extraire le texte du JSON
+                val text = try {
+                    val jsonObject = org.json.JSONObject(hypothesis)
+                    jsonObject.optString("text", "")
+                } catch (e: Exception) {
+                    hypothesis
+                }
+
+                if (text.isNotBlank()) {
+                    val result = SpeechRecognitionResult(
+                        text = text,
                         isFinal = true,
                         confidence = 1.0f
                     )
-                )
+                    _recognitionResults.emit(result)
+                    Log.d("VoskSpeechRecognizer", "✅ Résultat final reçu: $text")
+                }
+                stopRecognition()
+            } catch (e: Exception) {
+                Log.e("VoskSpeechRecognizer", "❌ Erreur lors de l'émission du résultat final", e)
             }
         }
     }
 
-    override fun onFinalResult(hypothesis: String?) {
-        hypothesis?.let {
-            Log.d("VoskSpeechRecognizer", "Résultat final confirmé: $it")
-            coroutineScope.launch {
-                _recognitionResults.emit(
-                    SpeechRecognitionResult(
-                        text = it,
-                        isFinal = true,
-                        confidence = 1.0f
-                    )
-                )
+    override fun onPartialResult(hypothesis: String) {
+        coroutineScope.launch {
+            try {
+                // Ne rien faire pour les résultats partiels
+                Log.d("VoskSpeechRecognizer", "📝 Résultat partiel reçu: $hypothesis")
+            } catch (e: Exception) {
+                Log.e("VoskSpeechRecognizer", "❌ Erreur lors de l'émission du résultat partiel", e)
             }
         }
     }

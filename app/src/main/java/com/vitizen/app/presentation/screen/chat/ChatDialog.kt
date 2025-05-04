@@ -30,7 +30,6 @@ fun ChatDialog(
     viewModel: ChatViewModel,
     onDismiss: () -> Unit
 ) {
-    var messageText by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -165,8 +164,8 @@ fun ChatDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
+                        value = state.currentInput,
+                        onValueChange = { viewModel.onMessageChanged(it) },
                         modifier = Modifier
                             .weight(1f)
                             .padding(end = 8.dp),
@@ -187,19 +186,17 @@ fun ChatDialog(
 
                     IconButton(
                         onClick = {
-                            if (messageText.isNotBlank()) {
-                                viewModel.onMessageChanged(messageText)
+                            if (state.currentInput.isNotBlank()) {
                                 viewModel.sendMessage()
-                                messageText = ""
                             }
                         },
-                        enabled = messageText.isNotBlank() && !state.isLoading && 
+                        enabled = state.currentInput.isNotBlank() && !state.isLoading && 
                                  state.connectionStatus is ChatState.ConnectionStatus.Connected,
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(24.dp))
                             .background(
-                                if (messageText.isNotBlank() && !state.isLoading && 
+                                if (state.currentInput.isNotBlank() && !state.isLoading && 
                                     state.connectionStatus is ChatState.ConnectionStatus.Connected) 
                                     MaterialTheme.colorScheme.primary 
                                 else 
@@ -216,7 +213,7 @@ fun ChatDialog(
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Envoyer",
-                                tint = if (messageText.isNotBlank() && 
+                                tint = if (state.currentInput.isNotBlank() && 
                                          state.connectionStatus is ChatState.ConnectionStatus.Connected) 
                                     MaterialTheme.colorScheme.onPrimary 
                                 else 
