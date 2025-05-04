@@ -13,7 +13,8 @@ interface WhisperApi {
         @Part file: MultipartBody.Part,
         @Part model: MultipartBody.Part,
         @Part language: MultipartBody.Part,
-        @Part responseFormat: MultipartBody.Part
+        @Part responseFormat: MultipartBody.Part,
+        @Part prompt: MultipartBody.Part? = null
     ): WhisperResponse
 
     @Multipart
@@ -21,6 +22,7 @@ interface WhisperApi {
     suspend fun translate(
         @Part file: MultipartBody.Part,
         @Part model: MultipartBody.Part,
-        @Part responseFormat: MultipartBody.Part
+        @Part responseFormat: MultipartBody.Part,
+        @Part prompt: MultipartBody.Part? = null
     ): WhisperResponse
 } 

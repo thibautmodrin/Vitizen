@@ -75,13 +75,31 @@ class VoiceRecognitionRepositoryImpl @Inject constructor(
                 val languagePart = MultipartBody.Part.createFormData("language", "fr")
                 val responseFormatPart = MultipartBody.Part.createFormData("response_format", "json")
 
+                // Prompt contextuel pour la viticulture et les traitements phytosanitaires
+                val promptText = """
+                    Contexte viticole : Cette transcription concerne une application d'assistant pour viticulteurs.
+                    Termes techniques courants : traitement phytosanitaire, pulvérisation, bouillie bordelaise, 
+                    soufre, cuivre, mildiou, oïdium, botrytis, flavescence dorée, cicadelle, tordeuse, 
+                    acariens, ravageurs, maladies cryptogamiques, produits phytosanitaires, 
+                    dose d'application, volume de bouillie, stade phénologique, période de traitement, 
+                    délai avant récolte, protection des cultures, lutte intégrée, agriculture raisonnée.
+                    Noms de produits : bouillie bordelaise, soufre mouillable, cuivre, fongicides, 
+                    insecticides, acaricides, produits de biocontrôle.
+                    Unités de mesure : litres par hectare, kilogrammes par hectare, grammes par hectare, 
+                    pourcentage de concentration, degrés Baumé.
+                    Stades de développement : débourrement, feuillaison, floraison, nouaison, 
+                    véraison, maturité, vendange.
+                """.trimIndent()
+                val promptPart = MultipartBody.Part.createFormData("prompt", promptText)
+
                 println("Envoi de l'audio à l'API Whisper...")
                 println("Taille de l'audio: ${audioData.size} bytes")
                 val response = whisperApi.transcribe(
                     file = audioPart,
                     model = modelPart,
                     language = languagePart,
-                    responseFormat = responseFormatPart
+                    responseFormat = responseFormatPart,
+                    prompt = promptPart
                 )
                 println("Réponse reçue de l'API Whisper: ${response.text}")
                 response.text
