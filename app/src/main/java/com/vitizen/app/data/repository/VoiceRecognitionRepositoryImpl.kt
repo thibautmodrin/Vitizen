@@ -1,0 +1,120 @@
+package com.vitizen.app.data.repository
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.media.MediaRecorder
+import androidx.core.content.ContextCompat
+import com.vitizen.app.data.remote.api.WhisperApi
+import com.vitizen.app.domain.repository.IVoiceRecognitionRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import javax.inject.Inject
+
+class VoiceRecognitionRepositoryImpl @Inject constructor(
+    private val whisperApi: WhisperApi,
+    @ApplicationContext private val context: Context
+) : IVoiceRecognitionRepository {
+
+    private var mediaRecorder: MediaRecorder? = null
+    private var isRecording = false
+    private var audioFile: File? = null
+
+    override suspend fun startRecording() {
+        withContext(Dispatchers.IO) {
+            try {
+                audioFile = createAudioFile(context)
+                mediaRecorder = MediaRecorder().apply {
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                    setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                    setOutputFile(audioFile?.absolutePath)
+                    setAudioEncodingBitRate(128000)
+                    setAudioSamplingRate(44100)
+                    prepare()
+                    start()
+                }
+                isRecording = true
+            } catch (e: Exception) {
+                throw VoiceRecognitionException("Erreur lors du démarrage de l'enregistrement", e)
+            }
+        }
+    }
+
+    override suspend fun stopRecording(): ByteArray {
+        return withContext(Dispatchers.IO) {
+            try {
+                mediaRecorder?.apply {
+                    stop()
+                    release()
+                }
+                mediaRecorder = null
+                isRecording = false
+                audioFile?.readBytes() ?: throw VoiceRecognitionException("Fichier audio non trouvé")
+            } catch (e: Exception) {
+                throw VoiceRecognitionException("Erreur lors de l'arrêt de l'enregistrement", e)
+            } finally {
+                audioFile?.delete()
+                audioFile = null
+            }
+        }
+    }
+
+    override suspend fun transcribeAudio(audioData: ByteArray): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                val audioRequestBody = audioData.toRequestBody("audio/mp4".toMediaTypeOrNull())
+                val audioPart = MultipartBody.Part.createFormData("file", "audio.m4a", audioRequestBody)
+                val modelPart = "gpt-4o-transcribe".toRequestBody("text/plain".toMediaTypeOrNull())
+                val languagePart = "fr".toRequestBody("text/plain".toMediaTypeOrNull())
+                val responseFormatPart = "verbose_json".toRequestBody("text/plain".toMediaTypeOrNull())
+                val timestampGranularitiesPart = "[\"word\"]".toRequestBody("application/json".toMediaTypeOrNull())
+                val promptPart = "La transcription est en français.".toRequestBody("text/plain".toMediaTypeOrNull())
+
+                val response = whisperApi.transcribe(
+                    audioPart,
+                    modelPart,
+                    languagePart,
+                    responseFormatPart,
+                    promptPart,
+                    timestampGranularitiesPart
+                )
+                response.text
+            } catch (e: Exception) {
+                throw VoiceRecognitionException("Erreur lors de la transcription", e)
+            }
+        }
+    }
+
+    override fun isRecording(): Boolean = isRecording
+
+    override fun getAudioLevel(): Float {
+        return if (isRecording && mediaRecorder != null) {
+            try {
+                mediaRecorder?.maxAmplitude?.toFloat() ?: 0f
+            } catch (e: Exception) {
+                0f
+            }
+        } else 0f
+    }
+
+    override suspend fun checkPermissions(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun createAudioFile(context: Context): File {
+        val timestamp = System.currentTimeMillis()
+        val fileName = "audio_record_$timestamp.m4a"
+        return File(context.cacheDir, fileName)
+    }
+}
+
+class VoiceRecognitionException(message: String, cause: Throwable? = null) : Exception(message, cause) 

@@ -1,11 +1,8 @@
 package com.vitizen.app.presentation.screen.chat
 
-import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.vitizen.app.data.remote.websocket.WebSocketMessage
 import com.vitizen.app.domain.model.ChatMessage
-import com.vitizen.app.domain.model.SpeechRecognitionModel
-import com.vitizen.app.domain.repository.ISpeechRepository
 import com.vitizen.app.domain.usecase.*
 import com.vitizen.app.presentation.viewmodel.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,68 +19,14 @@ class ChatViewModel @Inject constructor(
     private val sendChatMessage: SendChatMessageUseCase,
     private val connectToChat: ConnectToChatUseCase,
     private val disconnectChat: DisconnectChatUseCase,
-    private val appendBotMessage: AppendBotMessageUseCase,
-    private val startSpeechRecognition: StartSpeechRecognitionUseCase,
-    private val stopSpeechRecognition: StopSpeechRecognitionUseCase,
-    private val speechRepository: ISpeechRepository
+    private val appendBotMessage: AppendBotMessageUseCase
 ) : BaseViewModel<ChatState, ChatEvent>() {
 
     private val _state = MutableStateFlow(ChatState.Initial)
     val state: StateFlow<ChatState> = _state.asStateFlow()
 
-    private var messageText = ""
-
     init {
         connect()
-        observeSpeechRecognition()
-        initializeSpeechRecognition()
-    }
-
-    private fun initializeSpeechRecognition() {
-        viewModelScope.launch {
-            try {
-                speechRepository.initialize()
-            } catch (e: Exception) {
-                Log.e("ChatViewModel", "❌ Erreur lors de l'initialisation de la reconnaissance vocale", e)
-            }
-        }
-    }
-
-    private fun observeSpeechRecognition() {
-        viewModelScope.launch {
-            speechRepository.getRecognitionResults().collect { result ->
-                Log.d("ChatViewModel", "Reçu résultat de reconnaissance: $result")
-                if (result.text.isNotBlank()) {
-                    Log.d("ChatViewModel", "Mise à jour du texte: ${result.text}")
-                    _state.update { it.copy(currentInput = result.text) }
-                    messageText = result.text
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            speechRepository.isListening().collect { isListening ->
-                Log.d("ChatViewModel", "État d'écoute changé: $isListening")
-                _state.update { it.copy(isListening = isListening) }
-            }
-        }
-    }
-
-    fun toggleVoiceInput() {
-        viewModelScope.launch {
-            if (_state.value.isListening) {
-                stopSpeechRecognition()
-            } else {
-                try {
-                    // Réessayer l'initialisation si nécessaire
-                    speechRepository.initialize()
-                    startSpeechRecognition()
-                } catch (e: Exception) {
-                    Log.e("ChatViewModel", "❌ Erreur lors de l'initialisation de la reconnaissance vocale", e)
-                    _state.update { it.copy(error = "Erreur lors de l'initialisation de la reconnaissance vocale") }
-                }
-            }
-        }
     }
 
     private fun connect() {
@@ -190,25 +133,20 @@ class ChatViewModel @Inject constructor(
     }
 
     fun onMessageChanged(text: String) {
-        messageText = text
         _state.update { it.copy(currentInput = text) }
     }
 
     fun sendMessage() {
-        val msg = messageText.trim()
+        val msg = _state.value.currentInput.trim()
         if (msg.isEmpty()) return
 
         viewModelScope.launch {
-            val updatedMessages = _state.value.messages + ChatMessage(
-                message = msg,
-                isUser = true
-            )
+            val updatedMessages = _state.value.messages + ChatMessage("user", msg, isUser = true)
             _state.update { it.copy(
                 messages = updatedMessages,
                 currentInput = "",
                 lastMessageContent = msg
             )}
-            messageText = ""
 
             appendBotMessage.reset()
             setEvent(ChatEvent.MessageSent(msg))

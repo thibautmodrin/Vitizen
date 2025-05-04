@@ -276,6 +276,7 @@ fun HomePage(
                 if (showChatDialog) {
                     ChatDialog(
                         viewModel = hiltViewModel(),
+                        voiceRecognitionViewModel = hiltViewModel(),
                         onDismiss = { showChatDialog = false }
                     )
                 }

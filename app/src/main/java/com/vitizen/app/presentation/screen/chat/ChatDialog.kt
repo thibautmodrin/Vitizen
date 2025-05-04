@@ -20,7 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.vitizen.app.domain.model.ChatMessage
-import com.vitizen.app.presentation.screen.chat.components.VoiceInputButton
+import com.vitizen.app.presentation.components.VoiceRecognitionButton
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -28,8 +28,10 @@ import kotlinx.coroutines.delay
 @Composable
 fun ChatDialog(
     viewModel: ChatViewModel,
+    voiceRecognitionViewModel: VoiceRecognitionViewModel,
     onDismiss: () -> Unit
 ) {
+    var messageText by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -161,14 +163,14 @@ fun ChatDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedTextField(
-                        value = state.currentInput,
-                        onValueChange = { viewModel.onMessageChanged(it) },
+                        value = messageText,
+                        onValueChange = { messageText = it },
                         modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp),
+                            .weight(1f),
                         placeholder = { Text("Votre message...") },
                         enabled = !state.isLoading && state.connectionStatus is ChatState.ConnectionStatus.Connected,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -177,26 +179,28 @@ fun ChatDialog(
                         )
                     )
 
-                    VoiceInputButton(
-                        isListening = state.isListening,
-                        onStartListening = { viewModel.toggleVoiceInput() },
-                        onStopListening = { viewModel.toggleVoiceInput() },
-                        modifier = Modifier.padding(end = 8.dp)
+                    VoiceRecognitionButton(
+                        viewModel = voiceRecognitionViewModel,
+                        onTranscriptionComplete = { text ->
+                            messageText = text
+                        }
                     )
 
                     IconButton(
                         onClick = {
-                            if (state.currentInput.isNotBlank()) {
+                            if (messageText.isNotBlank()) {
+                                viewModel.onMessageChanged(messageText)
                                 viewModel.sendMessage()
+                                messageText = ""
                             }
                         },
-                        enabled = state.currentInput.isNotBlank() && !state.isLoading && 
+                        enabled = messageText.isNotBlank() && !state.isLoading && 
                                  state.connectionStatus is ChatState.ConnectionStatus.Connected,
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(24.dp))
                             .background(
-                                if (state.currentInput.isNotBlank() && !state.isLoading && 
+                                if (messageText.isNotBlank() && !state.isLoading && 
                                     state.connectionStatus is ChatState.ConnectionStatus.Connected) 
                                     MaterialTheme.colorScheme.primary 
                                 else 
@@ -213,7 +217,7 @@ fun ChatDialog(
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Envoyer",
-                                tint = if (state.currentInput.isNotBlank() && 
+                                tint = if (messageText.isNotBlank() && 
                                          state.connectionStatus is ChatState.ConnectionStatus.Connected) 
                                     MaterialTheme.colorScheme.onPrimary 
                                 else 

@@ -1,5 +1,6 @@
 package com.vitizen.app.di
 
+import com.vitizen.app.BuildConfig
 import com.vitizen.app.data.remote.service.ChatService
 import com.vitizen.app.data.repository.ChatRepositoryImpl
 import com.vitizen.app.domain.repository.IChatRepository
@@ -38,9 +39,20 @@ object NetworkModule {
             }
         }
 
+        val openAiAuthInterceptor = object : Interceptor {
+            override fun intercept(chain: Interceptor.Chain): Response {
+                val originalRequest = chain.request()
+                val newRequest = originalRequest.newBuilder()
+                    .header("Authorization", "Bearer ${BuildConfig.OPENAI_API_KEY}")
+                    .build()
+                return chain.proceed(newRequest)
+            }
+        }
+
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .addInterceptor(connectionInterceptor)
+            .addInterceptor(openAiAuthInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
