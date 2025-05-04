@@ -34,6 +34,7 @@ class VoskSpeechRecognizer(
     private var speechStreamService: SpeechStreamService? = null
     private var audioRecord: AudioRecord? = null
     private var isRecording = false
+    private var accumulatedText = StringBuilder()
     private val sampleRate = 16000
     private val bufferSize = AudioRecord.getMinBufferSize(
         sampleRate,
@@ -124,11 +125,11 @@ class VoskSpeechRecognizer(
             
             // Vérifier si le modèle est présent dans les assets
             try {
-                val modelFiles = context.assets.list("vosk-model-small-fr-0.22")
+                val modelFiles = context.assets.list("vosk-model-small-fr-pguyot-0.3")
                 if (modelFiles.isNullOrEmpty()) {
                     throw IOException("Le modèle Vosk n'est pas présent dans les assets")
                 }
-                Log.d("VoskSpeechRecognizer", "📦 Contenu du dossier vosk-model-small-fr-0.22: ${modelFiles.joinToString()}")
+                Log.d("VoskSpeechRecognizer", "📦 Contenu du dossier vosk-model-small-fr-pguyot-0.3: ${modelFiles.joinToString()}")
                 
                 // Vérifier les fichiers requis
                 val requiredFiles = listOf(
@@ -144,12 +145,12 @@ class VoskSpeechRecognizer(
                 // Vérifier que tous les fichiers requis sont présents
                 requiredFiles.forEach { file ->
                     try {
-                        context.assets.open("vosk-model-small-fr-0.22/$file").use { input ->
+                        context.assets.open("vosk-model-small-fr-pguyot-0.3/$file").use { input ->
                             val size = input.available().toLong()
-                            Log.d("VoskSpeechRecognizer", "📊 Taille du fichier vosk-model-small-fr-0.22/$file: $size octets")
+                            Log.d("VoskSpeechRecognizer", "📊 Taille du fichier vosk-model-small-fr-pguyot-0.3/$file: $size octets")
                         }
                     } catch (e: Exception) {
-                        throw IOException("Fichier manquant ou inaccessible: vosk-model-small-fr-0.22/$file")
+                        throw IOException("Fichier manquant ou inaccessible: vosk-model-small-fr-pguyot-0.3/$file")
                     }
                 }
             } catch (e: Exception) {
@@ -161,7 +162,7 @@ class VoskSpeechRecognizer(
             suspendCancellableCoroutine<Int> { continuation ->
                 try {
                     // Utiliser StorageService pour extraire le modèle
-                    StorageService.unpack(context, "vosk-model-small-fr-0.22", "model",
+                    StorageService.unpack(context, "vosk-model-small-fr-pguyot-0.3", "model",
                         { model: Model ->
                             try {
                                 this@VoskSpeechRecognizer.model = model
@@ -205,6 +206,9 @@ class VoskSpeechRecognizer(
                 return
             }
 
+            // Réinitialiser le texte accumulé au début de la reconnaissance
+            accumulatedText.clear()
+
             try {
                 val rec = Recognizer(model, sampleRate.toFloat())
                 speechService = SpeechService(rec, sampleRate.toFloat())
@@ -246,8 +250,30 @@ class VoskSpeechRecognizer(
     override fun onResult(hypothesis: String) {
         coroutineScope.launch {
             try {
-                // Ne rien faire pour les résultats intermédiaires
-                Log.d("VoskSpeechRecognizer", "📝 Résultat intermédiaire reçu: $hypothesis")
+                // Extraire le texte du JSON pour les résultats intermédiaires
+                val text = try {
+                    val jsonObject = org.json.JSONObject(hypothesis)
+                    jsonObject.optString("text", "")
+                } catch (e: Exception) {
+                    hypothesis
+                }
+
+                if (text.isNotBlank()) {
+                    // Ajouter le texte au texte accumulé
+                    if (accumulatedText.isNotEmpty()) {
+                        accumulatedText.append(" ")
+                    }
+                    accumulatedText.append(text)
+
+                    // Émettre le texte accumulé
+                    val result = SpeechRecognitionResult(
+                        text = accumulatedText.toString(),
+                        isFinal = false,
+                        confidence = 1.0f
+                    )
+                    _recognitionResults.emit(result)
+                    Log.d("VoskSpeechRecognizer", "📝 Texte accumulé: ${accumulatedText}")
+                }
             } catch (e: Exception) {
                 Log.e("VoskSpeechRecognizer", "❌ Erreur lors de l'émission du résultat intermédiaire", e)
             }
@@ -266,13 +292,20 @@ class VoskSpeechRecognizer(
                 }
 
                 if (text.isNotBlank()) {
+                    // Ajouter le texte final au texte accumulé
+                    if (accumulatedText.isNotEmpty()) {
+                        accumulatedText.append(" ")
+                    }
+                    accumulatedText.append(text)
+
+                    // Émettre le texte final accumulé
                     val result = SpeechRecognitionResult(
-                        text = text,
+                        text = accumulatedText.toString(),
                         isFinal = true,
                         confidence = 1.0f
                     )
                     _recognitionResults.emit(result)
-                    Log.d("VoskSpeechRecognizer", "✅ Résultat final reçu: $text")
+                    Log.d("VoskSpeechRecognizer", "✅ Texte final accumulé: ${accumulatedText}")
                 }
                 stopRecognition()
             } catch (e: Exception) {
@@ -284,8 +317,31 @@ class VoskSpeechRecognizer(
     override fun onPartialResult(hypothesis: String) {
         coroutineScope.launch {
             try {
-                // Ne rien faire pour les résultats partiels
-                Log.d("VoskSpeechRecognizer", "📝 Résultat partiel reçu: $hypothesis")
+                // Extraire le texte du JSON pour les résultats partiels
+                val text = try {
+                    val jsonObject = org.json.JSONObject(hypothesis)
+                    jsonObject.optString("text", "")
+                } catch (e: Exception) {
+                    hypothesis
+                }
+
+                if (text.isNotBlank()) {
+                    // Créer une copie temporaire du texte accumulé avec le résultat partiel
+                    val tempText = StringBuilder(accumulatedText)
+                    if (tempText.isNotEmpty()) {
+                        tempText.append(" ")
+                    }
+                    tempText.append(text)
+
+                    // Émettre le texte temporaire
+                    val result = SpeechRecognitionResult(
+                        text = tempText.toString(),
+                        isFinal = false,
+                        confidence = 0.5f
+                    )
+                    _recognitionResults.emit(result)
+                    Log.d("VoskSpeechRecognizer", "📝 Résultat partiel: $text")
+                }
             } catch (e: Exception) {
                 Log.e("VoskSpeechRecognizer", "❌ Erreur lors de l'émission du résultat partiel", e)
             }
