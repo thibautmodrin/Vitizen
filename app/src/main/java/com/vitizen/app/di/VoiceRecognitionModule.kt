@@ -21,12 +21,14 @@ object VoiceRecognitionModule {
     @Provides
     @Singleton
     fun provideWhisperApi(okHttpClient: OkHttpClient): WhisperApi {
-        return Retrofit.Builder()
+        println("Configuration de l'API Whisper...")
+        val retrofit = Retrofit.Builder()
             .baseUrl("https://api.openai.com/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(WhisperApi::class.java)
+        println("API Whisper configurée avec succès")
+        return retrofit.create(WhisperApi::class.java)
     }
 
     @Provides
@@ -35,6 +37,7 @@ object VoiceRecognitionModule {
         whisperApi: WhisperApi,
         @ApplicationContext context: Context
     ): IVoiceRecognitionRepository {
+        println("Création du repository de reconnaissance vocale...")
         return VoiceRecognitionRepositoryImpl(whisperApi, context)
     }
 } 

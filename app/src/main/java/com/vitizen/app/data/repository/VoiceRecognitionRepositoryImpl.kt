@@ -16,6 +16,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import javax.inject.Inject
 
+@Suppress("DEPRECATION")
 class VoiceRecognitionRepositoryImpl @Inject constructor(
     private val whisperApi: WhisperApi,
     @ApplicationContext private val context: Context
@@ -35,7 +36,7 @@ class VoiceRecognitionRepositoryImpl @Inject constructor(
                     setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                     setOutputFile(audioFile?.absolutePath)
                     setAudioEncodingBitRate(128000)
-                    setAudioSamplingRate(44100)
+                    setAudioSamplingRate(16000)
                     prepare()
                     start()
                 }
@@ -68,24 +69,25 @@ class VoiceRecognitionRepositoryImpl @Inject constructor(
     override suspend fun transcribeAudio(audioData: ByteArray): String {
         return withContext(Dispatchers.IO) {
             try {
-                val audioRequestBody = audioData.toRequestBody("audio/mp4".toMediaTypeOrNull())
-                val audioPart = MultipartBody.Part.createFormData("file", "audio.m4a", audioRequestBody)
-                val modelPart = "gpt-4o-transcribe".toRequestBody("text/plain".toMediaTypeOrNull())
-                val languagePart = "fr".toRequestBody("text/plain".toMediaTypeOrNull())
-                val responseFormatPart = "verbose_json".toRequestBody("text/plain".toMediaTypeOrNull())
-                val timestampGranularitiesPart = "[\"word\"]".toRequestBody("application/json".toMediaTypeOrNull())
-                val promptPart = "La transcription est en français.".toRequestBody("text/plain".toMediaTypeOrNull())
+                val audioRequestBody = audioData.toRequestBody("audio/mpeg".toMediaTypeOrNull())
+                val audioPart = MultipartBody.Part.createFormData("file", "audio.mp3", audioRequestBody)
+                val modelPart = MultipartBody.Part.createFormData("model", "whisper-1")
+                val languagePart = MultipartBody.Part.createFormData("language", "fr")
+                val responseFormatPart = MultipartBody.Part.createFormData("response_format", "json")
 
+                println("Envoi de l'audio à l'API Whisper...")
+                println("Taille de l'audio: ${audioData.size} bytes")
                 val response = whisperApi.transcribe(
-                    audioPart,
-                    modelPart,
-                    languagePart,
-                    responseFormatPart,
-                    promptPart,
-                    timestampGranularitiesPart
+                    file = audioPart,
+                    model = modelPart,
+                    language = languagePart,
+                    responseFormat = responseFormatPart
                 )
+                println("Réponse reçue de l'API Whisper: ${response.text}")
                 response.text
             } catch (e: Exception) {
+                println("Erreur lors de la transcription: ${e.message}")
+                e.printStackTrace()
                 throw VoiceRecognitionException("Erreur lors de la transcription", e)
             }
         }
@@ -112,7 +114,7 @@ class VoiceRecognitionRepositoryImpl @Inject constructor(
 
     private fun createAudioFile(context: Context): File {
         val timestamp = System.currentTimeMillis()
-        val fileName = "audio_record_$timestamp.m4a"
+        val fileName = "audio_record_$timestamp.mp3"
         return File(context.cacheDir, fileName)
     }
 }

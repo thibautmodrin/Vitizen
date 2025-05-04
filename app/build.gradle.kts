@@ -7,6 +7,16 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
+import java.util.Properties
+import java.io.FileInputStream
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+    println("OPENAI_API_KEY: ${localProperties.getProperty("OPENAI_API_KEY", "")}")
+}
+
 android {
     namespace = "com.vitizen.app"
     compileSdk = 34
@@ -22,7 +32,7 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "OPENAI_API_KEY", "\"${System.getenv("OPENAI_API_KEY") ?: ""}\"")
+        buildConfigField("String", "OPENAI_API_KEY", "\"${localProperties.getProperty("OPENAI_API_KEY", "")}\"")
     }
 
     buildTypes {

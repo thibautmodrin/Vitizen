@@ -42,9 +42,14 @@ object NetworkModule {
         val openAiAuthInterceptor = object : Interceptor {
             override fun intercept(chain: Interceptor.Chain): Response {
                 val originalRequest = chain.request()
+                val apiKey = BuildConfig.OPENAI_API_KEY
+                println("Using OpenAI API Key: $apiKey")
+                println("Request URL: ${originalRequest.url}")
+                println("Request Headers: ${originalRequest.headers}")
                 val newRequest = originalRequest.newBuilder()
-                    .header("Authorization", "Bearer ${BuildConfig.OPENAI_API_KEY}")
+                    .header("Authorization", "Bearer $apiKey")
                     .build()
+                println("New Request Headers: ${newRequest.headers}")
                 return chain.proceed(newRequest)
             }
         }
