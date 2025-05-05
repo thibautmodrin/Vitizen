@@ -31,7 +31,7 @@ fun VoiceRecognitionButton(
     modifier: Modifier = Modifier,
     onTranscriptionComplete: (String) -> Unit
 ) {
-    val context = LocalContext.current
+
     val scope = rememberCoroutineScope()
     val permissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
     val state by viewModel.state.collectAsState()

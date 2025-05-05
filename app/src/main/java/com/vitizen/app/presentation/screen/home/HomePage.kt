@@ -29,6 +29,8 @@ import com.vitizen.app.presentation.navigation.NavigationRoutes
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.automirrored.outlined.ShowChart
+import androidx.compose.material.icons.outlined.ShowChart
 import com.vitizen.app.data.local.preference.FirstConnectionManager
 import com.vitizen.app.presentation.screen.home.section.settings.ParametresScreen
 import com.vitizen.app.presentation.screen.home.section.followup.SuiviScreen
@@ -170,7 +172,7 @@ fun HomePage(
                             )
                         )
                         NavigationBarItem(
-                            icon = { Icon(Icons.Outlined.ShowChart, contentDescription = "Suivi") },
+                            icon = { Icon(Icons.AutoMirrored.Outlined.ShowChart, contentDescription = "Suivi") },
                             label = { Text("Suivi") },
                             selected = pagerState.currentPage == 1,
                             onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
@@ -199,9 +201,7 @@ fun HomePage(
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
         ) { paddingValues ->
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
+                modifier = Modifier.fillMaxSize()
             ) {
                 HorizontalPager(
                     state = pagerState,

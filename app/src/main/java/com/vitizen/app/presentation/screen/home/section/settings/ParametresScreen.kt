@@ -32,35 +32,37 @@ fun ParametresScreen(
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf(
-        TabItem("Informations", Icons.Default.Info),
+        TabItem("Infos", Icons.Default.Info),
         TabItem("Opérateurs", Icons.Default.Person),
         TabItem("Pulvérisateurs", Icons.Default.Build),
         TabItem("Parcelles", Icons.Default.Landscape)
     )
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            TabRow(
-                selectedTabIndex = selectedTabIndex,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    Tab(
-                        selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
-                        text = { Text(tab.title) },
-                        icon = { Icon(tab.icon, contentDescription = tab.title) }
-                    )
-                }
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        TabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = { 
+                Text(
+                            text = tab.title,
+                            style = MaterialTheme.typography.labelSmall
+                        ) 
+                    },
+                    icon = { Icon(tab.icon, contentDescription = tab.title) }
+                )
             }
         }
-    ) { padding ->
+
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+            modifier = Modifier.fillMaxSize()
         ) {
             when (selectedTabIndex) {
                 0 -> InformationsBox(
@@ -101,53 +103,45 @@ fun InformationsBox(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Informations générales",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(
-                        onClick = {
-                            if (isEditingGeneralInfo) {
-                                viewModel.stopEditingGeneralInfo()
-                            } else {
-                                viewModel.startEditingGeneralInfo()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (isEditingGeneralInfo) Icons.Default.Save else Icons.Default.Edit,
-                            contentDescription = if (isEditingGeneralInfo) "Sauvegarder" else "Modifier"
-                        )
-                    }
-                    if (isEditingGeneralInfo) {
-                        IconButton(
-                            onClick = { onNavigateToForm("generalInfo") }
+            Row(
+                    modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Ajouter des informations"
-                            )
-                        }
-                    }
-                }
-            }
+                                    IconButton(
+                                        onClick = {
+                                                if (isEditingGeneralInfo) {
+                                                    viewModel.stopEditingGeneralInfo()
+                                                } else {
+                                                    viewModel.startEditingGeneralInfo()
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isEditingGeneralInfo) Icons.Default.Save else Icons.Default.Edit,
+                                                contentDescription = if (isEditingGeneralInfo) "Sauvegarder" else "Modifier"
+                                            )
+                                        }
+                                        if (isEditingGeneralInfo) {
+                                            IconButton(
+                                                onClick = { onNavigateToForm("generalInfo") }
+                                    ) {
+                                        Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = "Ajouter des informations"
+                                        )
+                                            }
+                                    }
+                                }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (informationsGenerales.isNotEmpty()) {
+                                    if (informationsGenerales.isNotEmpty()) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                                    modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
                     items(informationsGenerales) { info ->
                         InformationItem(
                             information = info,
@@ -155,23 +149,23 @@ fun InformationsBox(
                             onEdit = { onNavigateToForm("generalInfo/${info.id}") },
                             onDelete = { viewModel.deleteInformationsGenerales(info) }
                         )
-                    }
-                }
-            } else {
+                                            }
+                                        }
+                                    } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Aucune information générale enregistrée",
+                                        Text(
+                                            text = "Aucune information générale enregistrée",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
 
 @Composable
 fun OperateursBox(
@@ -193,50 +187,42 @@ fun OperateursBox(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Opérateurs",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(
-                        onClick = {
-                            if (isEditingOperator) {
-                                viewModel.stopEditingOperator()
-                            } else {
-                                viewModel.startEditingOperator()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (isEditingOperator) Icons.Default.Save else Icons.Default.Edit,
-                            contentDescription = if (isEditingOperator) "Sauvegarder" else "Modifier"
-                        )
-                    }
-                    if (isEditingOperator) {
-                        IconButton(
-                            onClick = { onNavigateToForm("operateur") }
+                horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Ajouter un opérateur"
-                            )
-                        }
-                    }
-                }
-            }
+                                    IconButton(
+                                        onClick = {
+                                                if (isEditingOperator) {
+                                                    viewModel.stopEditingOperator()
+                                                } else {
+                                                    viewModel.startEditingOperator()
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isEditingOperator) Icons.Default.Save else Icons.Default.Edit,
+                                                contentDescription = if (isEditingOperator) "Sauvegarder" else "Modifier"
+                                            )
+                                        }
+                                        if (isEditingOperator) {
+                                            IconButton(
+                                                onClick = { onNavigateToForm("operateur") }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = "Ajouter un opérateur"
+                                                )
+                                            }
+                                        }
+                                    }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (operateurs.isNotEmpty()) {
+                                    if (operateurs.isNotEmpty()) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
                     items(operateurs) { operateur ->
                         OperateurItem(
                             operateur = operateur,
@@ -244,22 +230,22 @@ fun OperateursBox(
                             onEdit = { onNavigateToForm("operateur/${operateur.id}") },
                             onDelete = { viewModel.deleteOperateur(operateur) }
                         )
-                    }
-                }
-            } else {
+                                            }
+                                        }
+                                    } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Aucun opérateur enregistré",
+                                        Text(
+                                            text = "Aucun opérateur enregistré",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
+                                        )
+                                    }
+                                }
+                            }
+                        }
 }
 
 @Composable
@@ -290,44 +276,36 @@ fun PulverisateursBox(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Pulvérisateurs",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(
-                        onClick = { isEditingPulverisateur = !isEditingPulverisateur }
-                    ) {
-                        Icon(
-                            imageVector = if (isEditingPulverisateur) Icons.Default.Save else Icons.Default.Edit,
-                            contentDescription = if (isEditingPulverisateur) "Sauvegarder" else "Modifier"
-                        )
-                    }
-                    if (isEditingPulverisateur) {
-                        IconButton(
-                            onClick = { onNavigateToForm("pulverisateur") }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Ajouter un pulvérisateur"
-                            )
-                        }
-                    }
-                }
-            }
+                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                        IconButton(
+                    onClick = { isEditingPulverisateur = !isEditingPulverisateur }
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isEditingPulverisateur) Icons.Default.Save else Icons.Default.Edit,
+                                                contentDescription = if (isEditingPulverisateur) "Sauvegarder" else "Modifier"
+                                            )
+                                        }
+                                        if (isEditingPulverisateur) {
+                                            IconButton(
+                                                onClick = { onNavigateToForm("pulverisateur") }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = "Ajouter un pulvérisateur"
+                                            )
+                                        }
+                                    }
+                                }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (pulverisateurs.isNotEmpty()) {
+                                    if (pulverisateurs.isNotEmpty()) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
                     items(pulverisateurs) { pulverisateur ->
                         PulverisateurItem(
                             pulverisateur = pulverisateur,
@@ -335,22 +313,22 @@ fun PulverisateursBox(
                             onEdit = { onNavigateToForm("pulverisateur/${pulverisateur.id}") },
                             onDelete = { pulverisateurToDelete = pulverisateur }
                         )
-                    }
-                }
-            } else {
+                                            }
+                                        }
+                                    } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Aucun pulvérisateur enregistré",
+                                        Text(
+                                            text = "Aucun pulvérisateur enregistré",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
+                                        )
+                                    }
+                                }
+                            }
+                        }
 }
 
 @Composable
@@ -381,33 +359,25 @@ fun ParcellesBox(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Parcelles",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(
-                        onClick = { isEditingParcelle = !isEditingParcelle }
-                    ) {
-                        Icon(
-                            imageVector = if (isEditingParcelle) Icons.Default.Save else Icons.Default.Edit,
-                            contentDescription = if (isEditingParcelle) "Sauvegarder" else "Modifier"
+                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                        IconButton(
+                    onClick = { isEditingParcelle = !isEditingParcelle }
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isEditingParcelle) Icons.Default.Save else Icons.Default.Edit,
+                                                contentDescription = if (isEditingParcelle) "Sauvegarder" else "Modifier"
+                                            )
+                                        }
+                                        if (isEditingParcelle) {
+                                            IconButton(
+                                                onClick = { onNavigateToForm("parcelle") }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = "Ajouter une parcelle"
                         )
-                    }
-                    if (isEditingParcelle) {
-                        IconButton(
-                            onClick = { onNavigateToForm("parcelle") }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Ajouter une parcelle"
-                            )
-                        }
                     }
                 }
             }
@@ -437,12 +407,12 @@ fun ParcellesBox(
                         text = "Aucune parcelle enregistrée",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
 @Composable
 fun InformationItem(
@@ -467,8 +437,8 @@ fun InformationItem(
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
+                            ) {
+                                Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
@@ -522,14 +492,14 @@ fun OperateurItem(
         else 
             MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .padding(16.dp)
+                                                                .fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -538,9 +508,9 @@ fun OperateurItem(
                     style = MaterialTheme.typography.titleMedium
                 )
                 if (operateur.diplomes.isNotEmpty()) {
-                    Text(
+                                                            Text(
                         text = "Diplômes: ${operateur.diplomes.joinToString(", ")}",
-                        style = MaterialTheme.typography.bodyMedium,
+                                                                style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -559,16 +529,16 @@ fun OperateurItem(
             }
             if (isEditing) {
                 IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Supprimer",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-    }
-}
+                                                                Icon(
+                                                                    imageVector = Icons.Default.Delete,
+                                                                    contentDescription = "Supprimer",
+                                                                    tint = MaterialTheme.colorScheme.error
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
 
 @Composable
 fun PulverisateurItem(
@@ -636,7 +606,7 @@ fun PulverisateurItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(
+                                        Text(
                     text = "Largeur: ${pulverisateur.largeurTraitement}m • Volume: ${pulverisateur.volumeTotalCuve}L",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -648,12 +618,12 @@ fun PulverisateurItem(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Supprimer",
                         tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-    }
-}
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
 
 @Composable
 fun ParcelleItem(
