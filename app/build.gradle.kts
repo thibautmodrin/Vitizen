@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 // ✅ :app/build.gradle.kts
 plugins {
     alias(libs.plugins.android.application)
@@ -7,8 +10,7 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
-import java.util.Properties
-import java.io.FileInputStream
+
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -25,8 +27,8 @@ android {
         applicationId = "com.vitizen.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 7
+        versionName = "1.0.7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
