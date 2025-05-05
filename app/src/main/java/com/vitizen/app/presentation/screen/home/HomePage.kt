@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.ui.zIndex
 import com.vitizen.app.data.local.preference.FirstConnectionManager
 import com.vitizen.app.presentation.screen.home.section.settings.ParametresScreen
 import com.vitizen.app.presentation.screen.home.section.followup.SuiviScreen
@@ -266,19 +267,28 @@ fun HomePage(
                     }
                 }
 
-                // Chat FAB
-                ChatFAB(
-                    onClick = { showChatDialog = true },
-                    modifier = Modifier.align(Alignment.BottomEnd)
-                )
-
-                // Chat Dialog
-                if (showChatDialog) {
-                    ChatDialog(
-                        viewModel = hiltViewModel(),
-                        voiceRecognitionViewModel = hiltViewModel(),
-                        onDismiss = { showChatDialog = false }
+                // Chat FAB et Dialog dans un Box avec zIndex élevé
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(1f)
+                ) {
+                    // Chat FAB
+                    ChatFAB(
+                        onClick = { showChatDialog = true },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(horizontal = 16.dp, vertical = 80.dp)
                     )
+
+                    // Chat Dialog
+                    if (showChatDialog) {
+                        ChatDialog(
+                            viewModel = hiltViewModel(),
+                            voiceRecognitionViewModel = hiltViewModel(),
+                            onDismiss = { showChatDialog = false }
+                        )
+                    }
                 }
             }
         }
