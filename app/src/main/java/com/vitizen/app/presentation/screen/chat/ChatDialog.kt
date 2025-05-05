@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.filled.Wifi
@@ -170,13 +171,30 @@ fun ChatDialog(
                         value = messageText,
                         onValueChange = { messageText = it },
                         modifier = Modifier
-                            .weight(1f),
+                            .weight(1f)
+                            .heightIn(min = 56.dp, max = 200.dp),
                         placeholder = { Text("Votre message...") },
                         enabled = !state.isLoading && state.connectionStatus is ChatState.ConnectionStatus.Connected,
                         colors = OutlinedTextFieldDefaults.colors(
                             disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                         ),
+                        maxLines = 8,
+                        minLines = 1,
+                        leadingIcon = if (messageText.isNotBlank()) {
+                            {
+                                IconButton(
+                                    onClick = { messageText = "" },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Effacer le message",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                }
+                            }
+                        } else null,
                         trailingIcon = {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
