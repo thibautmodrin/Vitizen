@@ -46,18 +46,20 @@ fun VoiceRecognitionButton(
     )
 
     val backgroundColor by animateColorAsState(
-        targetValue = if (state.isRecording) 
-            MaterialTheme.colorScheme.error 
-        else 
-            MaterialTheme.colorScheme.surfaceVariant,
+        targetValue = when {
+            state.isProcessing -> MaterialTheme.colorScheme.tertiary
+            state.isRecording -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        },
         label = "backgroundColor"
     )
 
     val iconColor by animateColorAsState(
-        targetValue = if (state.isRecording) 
-            MaterialTheme.colorScheme.onError 
-        else 
-            MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue = when {
+            state.isProcessing -> MaterialTheme.colorScheme.onTertiary
+            state.isRecording -> MaterialTheme.colorScheme.onError
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
         label = "iconColor"
     )
 
@@ -68,11 +70,6 @@ fun VoiceRecognitionButton(
                     scope.launch {
                         if (state.isRecording) {
                             viewModel.stopRecording()
-                            state.transcribedText?.let { text ->
-                                if (text.isNotBlank()) {
-                                    onTranscriptionComplete(text)
-                                }
-                            }
                         } else {
                             viewModel.startRecording()
                         }
@@ -83,15 +80,33 @@ fun VoiceRecognitionButton(
                 }
             }
         },
+        enabled = !state.isProcessing,
         modifier = modifier
             .clip(CircleShape)
             .background(color = backgroundColor)
             .scale(scale)
     ) {
-        Icon(
-            imageVector = if (state.isRecording) Icons.Default.Stop else Icons.Default.Mic,
-            contentDescription = if (state.isRecording) "Arrêter l'enregistrement" else "Démarrer l'enregistrement",
-            tint = iconColor
-        )
+        if (state.isProcessing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp,
+                color = iconColor
+            )
+        } else {
+            Icon(
+                imageVector = if (state.isRecording) Icons.Default.Stop else Icons.Default.Mic,
+                contentDescription = if (state.isRecording) "Arrêter l'enregistrement" else "Démarrer l'enregistrement",
+                tint = iconColor
+            )
+        }
+    }
+
+    // Observer le texte transcrit
+    LaunchedEffect(state.transcribedText) {
+        state.transcribedText?.let { text ->
+            if (text.isNotBlank()) {
+                onTranscriptionComplete(text)
+            }
+        }
     }
 }
