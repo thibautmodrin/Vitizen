@@ -31,12 +31,14 @@ fun ParametresScreen(
     onNavigateToForm: (String) -> Unit,
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
-    val tabs = listOf(
-        TabItem("Infos", Icons.Default.Info),
-        TabItem("Opérateurs", Icons.Default.Person),
-        TabItem("Pulvérisateurs", Icons.Default.Build),
-        TabItem("Parcelles", Icons.Default.Landscape)
-    )
+    val tabs = remember {
+        listOf(
+            TabItem("Infos", Icons.Default.Info),
+            TabItem("Opérateurs", Icons.Default.Person),
+            TabItem("Pulvérisateurs", Icons.Default.Build),
+            TabItem("Parcelles", Icons.Default.Landscape)
+        )
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -51,7 +53,7 @@ fun ParametresScreen(
                     selected = selectedTabIndex == index,
                     onClick = { selectedTabIndex = index },
                     text = { 
-                Text(
+                        Text(
                             text = tab.title,
                             style = MaterialTheme.typography.labelSmall
                         ) 
@@ -111,29 +113,15 @@ fun InformationsBox(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { onNavigateToForm("generalInfo") }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Ajouter des informations"
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             if (informationsGenerales.isNotEmpty()) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(informationsGenerales) { info ->
+                    items(
+                        items = informationsGenerales,
+                        key = { it.id }
+                    ) { info ->
                         InformationItem(
                             information = info,
                             onEdit = { onNavigateToForm("generalInfo/${info.id}") },
@@ -153,6 +141,20 @@ fun InformationsBox(
                     )
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = { onNavigateToForm("generalInfo") },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Ajouter des informations"
+            )
         }
     }
 }
@@ -182,29 +184,15 @@ fun OperateursBox(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { onNavigateToForm("operateur") }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Ajouter un opérateur"
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             if (operateurs.isNotEmpty()) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(operateurs) { operateur ->
+                    items(
+                        items = operateurs,
+                        key = { it.id }
+                    ) { operateur ->
                         OperateurItem(
                             operateur = operateur,
                             onEdit = { onNavigateToForm("operateur/${operateur.id}") },
@@ -224,6 +212,20 @@ fun OperateursBox(
                     )
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = { onNavigateToForm("operateur") },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Ajouter un opérateur"
+            )
         }
     }
 }
@@ -253,29 +255,15 @@ fun PulverisateursBox(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { onNavigateToForm("pulverisateur") }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Ajouter un pulvérisateur"
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             if (pulverisateurs.isNotEmpty()) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(pulverisateurs) { pulverisateur ->
+                    items(
+                        items = pulverisateurs,
+                        key = { it.id }
+                    ) { pulverisateur ->
                         PulverisateurItem(
                             pulverisateur = pulverisateur,
                             onEdit = { onNavigateToForm("pulverisateur/${pulverisateur.id}") },
@@ -295,6 +283,20 @@ fun PulverisateursBox(
                     )
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = { onNavigateToForm("pulverisateur") },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Ajouter un pulvérisateur"
+            )
         }
     }
 }
@@ -324,29 +326,15 @@ fun ParcellesBox(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { onNavigateToForm("parcelle") }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Ajouter une parcelle"
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             if (parcelles.isNotEmpty()) {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(parcelles) { parcelle ->
+                    items(
+                        items = parcelles,
+                        key = { it.id }
+                    ) { parcelle ->
                         ParcelleItem(
                             parcelle = parcelle,
                             onEdit = { onNavigateToForm("parcelle/${parcelle.id}") },
@@ -366,6 +354,20 @@ fun ParcellesBox(
                     )
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = { onNavigateToForm("parcelle") },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Ajouter une parcelle"
+            )
         }
     }
 }

@@ -31,6 +31,7 @@ fun InformationsGeneralesForm(
     var modeCultureError by remember { mutableStateOf(false) }
     var surfaceTotaleError by remember { mutableStateOf(false) }
     var codePostalError by remember { mutableStateOf(false) }
+    var surfaceTotaleErrorMessage by remember { mutableStateOf("") }
 
     var modeCultureExpanded by remember { mutableStateOf(false) }
 
@@ -105,10 +106,18 @@ fun InformationsGeneralesForm(
 
             OutlinedTextField(
                 value = surfaceTotale,
-                onValueChange = { surfaceTotale = it; surfaceTotaleError = false },
+                onValueChange = { 
+                    surfaceTotale = it
+                    surfaceTotaleError = false
+                    surfaceTotaleErrorMessage = ""
+                },
                 label = { Text("Surface totale (ha)") },
                 isError = surfaceTotaleError,
-                supportingText = { if (surfaceTotaleError) Text("La surface totale est requise") },
+                supportingText = { 
+                    if (surfaceTotaleError) {
+                        Text(surfaceTotaleErrorMessage)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -134,7 +143,21 @@ fun InformationsGeneralesForm(
                     }
                     if (surfaceTotale.isBlank()) {
                         surfaceTotaleError = true
+                        surfaceTotaleErrorMessage = "La surface totale est requise"
                         hasError = true
+                    } else {
+                        try {
+                            val surfaceValue = surfaceTotale.toFloat()
+                            if (surfaceValue <= 0) {
+                                surfaceTotaleError = true
+                                surfaceTotaleErrorMessage = "La surface doit être supérieure à 0"
+                                hasError = true
+                            }
+                        } catch (e: NumberFormatException) {
+                            surfaceTotaleError = true
+                            surfaceTotaleErrorMessage = "Veuillez entrer un nombre valide"
+                            hasError = true
+                        }
                     }
                     if (codePostal.isBlank()) {
                         codePostalError = true
@@ -142,25 +165,31 @@ fun InformationsGeneralesForm(
                     }
 
                     if (!hasError) {
-                        if (informationsId == null) {
-                            viewModel.addInformationsGenerales(
-                                nomDomaine = nomDomaine,
-                                modeCulture = modeCulture,
-                                certifications = certifications,
-                                surfaceTotale = surfaceTotale.toFloat(),
-                                codePostal = codePostal
-                            )
-                        } else {
-                            viewModel.updateInformationsGenerales(
-                                id = informationsId,
-                                nomDomaine = nomDomaine,
-                                modeCulture = modeCulture,
-                                surfaceTotale = surfaceTotale.toFloat(),
-                                codePostal = codePostal,
-                                certifications = certifications
-                            )
+                        try {
+                            val surfaceValue = surfaceTotale.toFloat()
+                            if (informationsId == null) {
+                                viewModel.addInformationsGenerales(
+                                    nomDomaine = nomDomaine,
+                                    modeCulture = modeCulture,
+                                    certifications = certifications,
+                                    surfaceTotale = surfaceValue,
+                                    codePostal = codePostal
+                                )
+                            } else {
+                                viewModel.updateInformationsGenerales(
+                                    id = informationsId,
+                                    nomDomaine = nomDomaine,
+                                    modeCulture = modeCulture,
+                                    surfaceTotale = surfaceValue,
+                                    codePostal = codePostal,
+                                    certifications = certifications
+                                )
+                            }
+                            onNavigateBack()
+                        } catch (e: NumberFormatException) {
+                            surfaceTotaleError = true
+                            surfaceTotaleErrorMessage = "Veuillez entrer un nombre valide"
                         }
-                        onNavigateBack()
                     }
                 },
                 modifier = Modifier.align(Alignment.End)
