@@ -92,88 +92,14 @@ fun InformationsBox(
     onNavigateToForm: (String) -> Unit
 ) {
     val informationsGenerales by viewModel.informationsGenerales.collectAsState()
-    val isEditingGeneralInfo by viewModel.isEditingGeneralInfo.collectAsState()
+    var informationToDelete by remember { mutableStateOf<InformationsGeneralesEntity?>(null) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-            ) {
-            Row(
-                    modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                                    IconButton(
-                                        onClick = {
-                                                if (isEditingGeneralInfo) {
-                                                    viewModel.stopEditingGeneralInfo()
-                                                } else {
-                                                    viewModel.startEditingGeneralInfo()
-                                                }
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isEditingGeneralInfo) Icons.Default.Save else Icons.Default.Edit,
-                                                contentDescription = if (isEditingGeneralInfo) "Sauvegarder" else "Modifier"
-                                            )
-                                        }
-                                        if (isEditingGeneralInfo) {
-                                            IconButton(
-                                                onClick = { onNavigateToForm("generalInfo") }
-                                    ) {
-                                        Icon(
-                                                    imageVector = Icons.Default.Add,
-                                                    contentDescription = "Ajouter des informations"
-                                        )
-                                            }
-                                    }
-                                }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-                                    if (informationsGenerales.isNotEmpty()) {
-                LazyColumn(
-                                    modifier = Modifier.fillMaxWidth(),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                    items(informationsGenerales) { info ->
-                        InformationItem(
-                            information = info,
-                            isEditing = isEditingGeneralInfo,
-                            onEdit = { onNavigateToForm("generalInfo/${info.id}") },
-                            onDelete = { viewModel.deleteInformationsGenerales(info) }
-                        )
-                                            }
-                                        }
-                                    } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                                        Text(
-                                            text = "Aucune information générale enregistrée",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-@Composable
-fun OperateursBox(
-    viewModel: ParametresViewModel,
-    onNavigateToForm: (String) -> Unit
-) {
-    val operateurs by viewModel.operateurs.collectAsState()
-    val isEditingOperator by viewModel.isEditingOperator.collectAsState()
+    LaunchedEffect(informationToDelete) {
+        informationToDelete?.let { info ->
+            viewModel.deleteInformationsGenerales(info)
+            informationToDelete = null
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -188,64 +114,118 @@ fun OperateursBox(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                                    IconButton(
-                                        onClick = {
-                                                if (isEditingOperator) {
-                                                    viewModel.stopEditingOperator()
-                                                } else {
-                                                    viewModel.startEditingOperator()
-                                                }
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isEditingOperator) Icons.Default.Save else Icons.Default.Edit,
-                                                contentDescription = if (isEditingOperator) "Sauvegarder" else "Modifier"
-                                            )
-                                        }
-                                        if (isEditingOperator) {
-                                            IconButton(
-                                                onClick = { onNavigateToForm("operateur") }
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Add,
-                                                    contentDescription = "Ajouter un opérateur"
-                                                )
-                                            }
-                                        }
-                                    }
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { onNavigateToForm("generalInfo") }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Ajouter des informations"
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-                                    if (operateurs.isNotEmpty()) {
+            if (informationsGenerales.isNotEmpty()) {
                 LazyColumn(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                    items(operateurs) { operateur ->
-                        OperateurItem(
-                            operateur = operateur,
-                            isEditing = isEditingOperator,
-                            onEdit = { onNavigateToForm("operateur/${operateur.id}") },
-                            onDelete = { viewModel.deleteOperateur(operateur) }
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(informationsGenerales) { info ->
+                        InformationItem(
+                            information = info,
+                            onEdit = { onNavigateToForm("generalInfo/${info.id}") },
+                            onDelete = { informationToDelete = info }
                         )
-                                            }
-                                        }
-                                    } else {
+                    }
+                }
+            } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                                        Text(
-                                            text = "Aucun opérateur enregistré",
+                    Text(
+                        text = "Aucune information générale enregistrée",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OperateursBox(
+    viewModel: ParametresViewModel,
+    onNavigateToForm: (String) -> Unit
+) {
+    val operateurs by viewModel.operateurs.collectAsState()
+    var operateurToDelete by remember { mutableStateOf<OperateurEntity?>(null) }
+
+    LaunchedEffect(operateurToDelete) {
+        operateurToDelete?.let { operateur ->
+            viewModel.deleteOperateur(operateur)
+            operateurToDelete = null
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { onNavigateToForm("operateur") }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Ajouter un opérateur"
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (operateurs.isNotEmpty()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(operateurs) { operateur ->
+                        OperateurItem(
+                            operateur = operateur,
+                            onEdit = { onNavigateToForm("operateur/${operateur.id}") },
+                            onDelete = { operateurToDelete = operateur }
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Aucun opérateur enregistré",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -254,7 +234,6 @@ fun PulverisateursBox(
     onNavigateToForm: (String) -> Unit
 ) {
     val pulverisateurs by viewModel.pulverisateurs.collectAsState()
-    var isEditingPulverisateur by remember { mutableStateOf(false) }
     var pulverisateurToDelete by remember { mutableStateOf<PulverisateurEntity?>(null) }
 
     LaunchedEffect(pulverisateurToDelete) {
@@ -277,58 +256,47 @@ fun PulverisateursBox(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                        IconButton(
-                    onClick = { isEditingPulverisateur = !isEditingPulverisateur }
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isEditingPulverisateur) Icons.Default.Save else Icons.Default.Edit,
-                                                contentDescription = if (isEditingPulverisateur) "Sauvegarder" else "Modifier"
-                                            )
-                                        }
-                                        if (isEditingPulverisateur) {
-                                            IconButton(
-                                                onClick = { onNavigateToForm("pulverisateur") }
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Add,
-                                                contentDescription = "Ajouter un pulvérisateur"
-                                            )
-                                        }
-                                    }
-                                }
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { onNavigateToForm("pulverisateur") }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Ajouter un pulvérisateur"
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-                                    if (pulverisateurs.isNotEmpty()) {
+            if (pulverisateurs.isNotEmpty()) {
                 LazyColumn(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     items(pulverisateurs) { pulverisateur ->
                         PulverisateurItem(
                             pulverisateur = pulverisateur,
-                            isEditing = isEditingPulverisateur,
                             onEdit = { onNavigateToForm("pulverisateur/${pulverisateur.id}") },
                             onDelete = { pulverisateurToDelete = pulverisateur }
                         )
-                                            }
-                                        }
-                                    } else {
+                    }
+                }
+            } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                                        Text(
-                                            text = "Aucun pulvérisateur enregistré",
+                    Text(
+                        text = "Aucun pulvérisateur enregistré",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -337,7 +305,6 @@ fun ParcellesBox(
     onNavigateToForm: (String) -> Unit
 ) {
     val parcelles by viewModel.parcelles.collectAsState()
-    var isEditingParcelle by remember { mutableStateOf(false) }
     var parcelleToDelete by remember { mutableStateOf<ParcelleEntity?>(null) }
 
     LaunchedEffect(parcelleToDelete) {
@@ -360,25 +327,15 @@ fun ParcellesBox(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                        IconButton(
-                    onClick = { isEditingParcelle = !isEditingParcelle }
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isEditingParcelle) Icons.Default.Save else Icons.Default.Edit,
-                                                contentDescription = if (isEditingParcelle) "Sauvegarder" else "Modifier"
-                                            )
-                                        }
-                                        if (isEditingParcelle) {
-                                            IconButton(
-                                                onClick = { onNavigateToForm("parcelle") }
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Add,
-                                                    contentDescription = "Ajouter une parcelle"
-                        )
-                    }
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { onNavigateToForm("parcelle") }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Ajouter une parcelle"
+                    )
                 }
             }
 
@@ -392,7 +349,6 @@ fun ParcellesBox(
                     items(parcelles) { parcelle ->
                         ParcelleItem(
                             parcelle = parcelle,
-                            isEditing = isEditingParcelle,
                             onEdit = { onNavigateToForm("parcelle/${parcelle.id}") },
                             onDelete = { parcelleToDelete = parcelle }
                         )
@@ -407,28 +363,49 @@ fun ParcellesBox(
                         text = "Aucune parcelle enregistrée",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun InformationItem(
     information: InformationsGeneralesEntity,
-    isEditing: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Confirmer la suppression") },
+            text = { Text("Voulez-vous vraiment supprimer ces informations ?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        onDelete()
+                    }
+                ) {
+                    Text("Supprimer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = isEditing) { if (isEditing) onEdit() },
-        color = if (isEditing) 
-            MaterialTheme.colorScheme.surfaceVariant
-        else 
-            MaterialTheme.colorScheme.surface,
+            .clickable { onEdit() },
+        color = MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp
     ) {
         Row(
@@ -437,8 +414,8 @@ fun InformationItem(
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(
+        ) {
+            Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
@@ -463,14 +440,12 @@ fun InformationItem(
                     )
                 }
             }
-            if (isEditing) {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Supprimer",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
+            IconButton(onClick = { showDeleteConfirmation = true }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Supprimer",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
@@ -479,27 +454,48 @@ fun InformationItem(
 @Composable
 fun OperateurItem(
     operateur: OperateurEntity,
-    isEditing: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Confirmer la suppression") },
+            text = { Text("Voulez-vous vraiment supprimer cet opérateur ?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        onDelete()
+                    }
+                ) {
+                    Text("Supprimer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = isEditing) { if (isEditing) onEdit() },
-        color = if (isEditing) 
-            MaterialTheme.colorScheme.surfaceVariant
-        else 
-            MaterialTheme.colorScheme.surface,
+            .clickable { onEdit() },
+        color = MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp
-                                                    ) {
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .padding(16.dp)
-                                                                .fillMaxWidth(),
-                                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -507,12 +503,23 @@ fun OperateurItem(
                     text = operateur.nom,
                     style = MaterialTheme.typography.titleMedium
                 )
-                if (operateur.diplomes.isNotEmpty()) {
-                                                            Text(
-                        text = "Diplômes: ${operateur.diplomes.joinToString(", ")}",
-                                                                style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (operateur.disponibleWeekend) {
+                        Text(
+                            text = "Disponible le week-end",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (operateur.diplomes.contains("CertiPhyto")) {
+                        Text(
+                            text = "CertiPhyto",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 if (operateur.materielMaitrise.isNotEmpty()) {
                     Text(
@@ -521,29 +528,21 @@ fun OperateurItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    text = if (operateur.disponibleWeekend) "Disponible le weekend" else "Non disponible le weekend",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            IconButton(onClick = { showDeleteConfirmation = true }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Supprimer",
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
-            if (isEditing) {
-                IconButton(onClick = onDelete) {
-                                                                Icon(
-                                                                    imageVector = Icons.Default.Delete,
-                                                                    contentDescription = "Supprimer",
-                                                                    tint = MaterialTheme.colorScheme.error
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
+        }
+    }
+}
 
 @Composable
 fun PulverisateurItem(
     pulverisateur: PulverisateurEntity,
-    isEditing: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -575,11 +574,8 @@ fun PulverisateurItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = isEditing) { if (isEditing) onEdit() },
-        color = if (isEditing) 
-            MaterialTheme.colorScheme.surfaceVariant
-        else 
-            MaterialTheme.colorScheme.surface,
+            .clickable { onEdit() },
+        color = MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp
     ) {
         Row(
@@ -606,29 +602,26 @@ fun PulverisateurItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                                        Text(
+                Text(
                     text = "Largeur: ${pulverisateur.largeurTraitement}m • Volume: ${pulverisateur.volumeTotalCuve}L",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            if (isEditing) {
-                IconButton(onClick = { showDeleteConfirmation = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Supprimer",
-                        tint = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+            IconButton(onClick = { showDeleteConfirmation = true }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Supprimer",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun ParcelleItem(
     parcelle: ParcelleEntity,
-    isEditing: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -660,11 +653,8 @@ fun ParcelleItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = isEditing) { if (isEditing) onEdit() },
-        color = if (isEditing) 
-            MaterialTheme.colorScheme.surfaceVariant
-        else 
-            MaterialTheme.colorScheme.surface,
+            .clickable { onEdit() },
+        color = MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp
     ) {
         Row(
@@ -704,14 +694,12 @@ fun ParcelleItem(
                     )
                 }
             }
-            if (isEditing) {
-                IconButton(onClick = { showDeleteConfirmation = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Supprimer",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
+            IconButton(onClick = { showDeleteConfirmation = true }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Supprimer",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
