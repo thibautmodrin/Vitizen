@@ -25,6 +25,14 @@ import com.vitizen.app.domain.repository.IChatRepository
 import com.vitizen.app.presentation.session.SessionManager
 import com.vitizen.app.presentation.navigation.manager.NavigationManager
 import com.vitizen.app.presentation.navigation.manager.NavigationManagerImpl
+import com.vitizen.app.data.repository.OperateurRepository
+import com.vitizen.app.domain.repository.IOperateurRepository
+import com.vitizen.app.data.repository.PulverisateurRepository
+import com.vitizen.app.domain.repository.IPulverisateurRepository
+import com.vitizen.app.data.repository.ParcelleRepository
+import com.vitizen.app.domain.repository.IParcelleRepository
+import com.vitizen.app.data.repository.InformationsGeneralesRepository
+import com.vitizen.app.domain.repository.IInformationsGeneralesRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -161,5 +169,28 @@ object AppModule {
         return database.operateurDao()
     }
 
+    @Provides
+    @Singleton
+    fun provideOperateurRepository(operateurDao: OperateurDao): IOperateurRepository {
+        return OperateurRepository(operateurDao)
+    }
+
+    @Provides
+    @Singleton
+    fun providePulverisateurRepository(pulverisateurDao: PulverisateurDao): IPulverisateurRepository {
+        return PulverisateurRepository(pulverisateurDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideParcelleRepository(parcelleDao: ParcelleDao): IParcelleRepository {
+        return ParcelleRepository(parcelleDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideInformationsGeneralesRepository(informationsGeneralesDao: InformationsGeneralesDao): IInformationsGeneralesRepository {
+        return InformationsGeneralesRepository(informationsGeneralesDao)
+    }
 
 }

@@ -3,14 +3,14 @@ package com.vitizen.app.presentation.screen.home.section.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitizen.app.data.local.dao.InformationsGeneralesDao
-import com.vitizen.app.data.local.dao.OperateurDao
 import com.vitizen.app.data.local.entity.InformationsGeneralesEntity
 import com.vitizen.app.data.local.entity.OperateurEntity
 import com.vitizen.app.data.local.entity.ParcelleEntity
 import com.vitizen.app.data.local.entity.PulverisateurEntity
-import com.vitizen.app.data.repository.InformationsGeneralesRepository
-import com.vitizen.app.data.repository.ParcelleRepository
-import com.vitizen.app.data.repository.PulverisateurRepository
+import com.vitizen.app.domain.repository.IInformationsGeneralesRepository
+import com.vitizen.app.domain.repository.IOperateurRepository
+import com.vitizen.app.domain.repository.IParcelleRepository
+import com.vitizen.app.domain.repository.IPulverisateurRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,11 +20,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ParametresViewModel @Inject constructor(
-    private val repository: InformationsGeneralesRepository,
+    private val repository: IInformationsGeneralesRepository,
     private val informationsGeneralesDao: InformationsGeneralesDao,
-    private val operateurDao: OperateurDao,
-    private val pulverisateurRepository: PulverisateurRepository,
-    private val parcelleRepository: ParcelleRepository
+    private val operateurRepository: IOperateurRepository,
+    private val pulverisateurRepository: IPulverisateurRepository,
+    private val parcelleRepository: IParcelleRepository
 ) : ViewModel() {
 
     private val _isEditingGeneralInfo = MutableStateFlow(false)
@@ -55,7 +55,7 @@ class ParametresViewModel @Inject constructor(
     init {
         loadInformationsGenerales()
         viewModelScope.launch {
-            operateurDao.getAll().collect { operateursList ->
+            operateurRepository.getAll().collect { operateursList ->
                 _operateurs.value = operateursList
             }
         }
@@ -79,8 +79,6 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-
-
     fun addInformationsGenerales(
         nomDomaine: String,
         modeCulture: String,
@@ -101,15 +99,11 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-
-
     fun deleteInformationsGenerales(informations: InformationsGeneralesEntity) {
         viewModelScope.launch {
             informationsGeneralesDao.delete(informations)
         }
     }
-
-
 
     fun setGeneralInfoExpanded(expanded: Boolean) {
         _isGeneralInfoExpanded.value = expanded
@@ -132,19 +126,14 @@ class ParametresViewModel @Inject constructor(
                 diplomes = diplomes,
                 materielMaitrise = materielMaitrise
             )
-            operateurDao.insert(operateur)
+            operateurRepository.insert(operateur)
             _isOperatorExpanded.value = true
-            operateurDao.getAll().collect { operateursList ->
-                _operateurs.value = operateursList
-            }
         }
     }
 
-
-
     fun deleteOperateur(operateur: OperateurEntity) {
         viewModelScope.launch {
-            operateurDao.delete(operateur)
+            operateurRepository.delete(operateur)
         }
     }
 
@@ -187,7 +176,7 @@ class ParametresViewModel @Inject constructor(
                 diplomes = diplomes,
                 materielMaitrise = materielMaitrise
             )
-            operateurDao.update(operateur)
+            operateurRepository.update(operateur)
         }
     }
 
@@ -211,7 +200,6 @@ class ParametresViewModel @Inject constructor(
             informationsGeneralesDao.update(informations)
         }
     }
-
 
     suspend fun getPulverisateurById(id: Long): PulverisateurEntity? {
         return pulverisateurRepository.getPulverisateurById(id)
