@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.vitizen.app.data.local.entity.ParcelleEntity
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +39,21 @@ fun ParcelleForm(
     var longitude by remember { mutableStateOf("") }
 
     var showErrors by remember { mutableStateOf(false) }
+    var surfaceError by remember { mutableStateOf(false) }
+    var anneePlantationError by remember { mutableStateOf(false) }
+    var largeurInterrangError by remember { mutableStateOf(false) }
+    var hauteurFeuillageError by remember { mutableStateOf(false) }
+    var penteError by remember { mutableStateOf(false) }
+    var latitudeError by remember { mutableStateOf(false) }
+    var longitudeError by remember { mutableStateOf(false) }
+
+    var surfaceErrorMessage by remember { mutableStateOf("") }
+    var anneePlantationErrorMessage by remember { mutableStateOf("") }
+    var largeurInterrangErrorMessage by remember { mutableStateOf("") }
+    var hauteurFeuillageErrorMessage by remember { mutableStateOf("") }
+    var penteErrorMessage by remember { mutableStateOf("") }
+    var latitudeErrorMessage by remember { mutableStateOf("") }
+    var longitudeErrorMessage by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
 
@@ -101,13 +117,17 @@ fun ParcelleForm(
 
             OutlinedTextField(
                 value = surface,
-                onValueChange = { surface = it },
+                onValueChange = { 
+                    surface = it
+                    surfaceError = false
+                    surfaceErrorMessage = ""
+                },
                 label = { Text("Surface (ha) *") },
                 modifier = Modifier.fillMaxWidth(),
-                isError = showErrors && surface.isBlank(),
+                isError = surfaceError,
                 supportingText = {
-                    if (showErrors && surface.isBlank()) {
-                        Text("Ce champ est obligatoire", color = MaterialTheme.colorScheme.error)
+                    if (surfaceError) {
+                        Text(surfaceErrorMessage)
                     }
                 }
             )
@@ -131,13 +151,17 @@ fun ParcelleForm(
 
             OutlinedTextField(
                 value = anneePlantation,
-                onValueChange = { anneePlantation = it },
+                onValueChange = { 
+                    anneePlantation = it
+                    anneePlantationError = false
+                    anneePlantationErrorMessage = ""
+                },
                 label = { Text("Année de plantation *") },
                 modifier = Modifier.fillMaxWidth(),
-                isError = showErrors && anneePlantation.isBlank(),
+                isError = anneePlantationError,
                 supportingText = {
-                    if (showErrors && anneePlantation.isBlank()) {
-                        Text("Ce champ est obligatoire", color = MaterialTheme.colorScheme.error)
+                    if (anneePlantationError) {
+                        Text(anneePlantationErrorMessage)
                     }
                 }
             )
@@ -161,77 +185,58 @@ fun ParcelleForm(
 
             OutlinedTextField(
                 value = largeurInterrang,
-                onValueChange = { largeurInterrang = it },
+                onValueChange = { 
+                    largeurInterrang = it
+                    largeurInterrangError = false
+                    largeurInterrangErrorMessage = ""
+                },
                 label = { Text("Largeur interrang (m)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = largeurInterrangError,
+                supportingText = {
+                    if (largeurInterrangError) {
+                        Text(largeurInterrangErrorMessage)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = hauteurFeuillage,
-                onValueChange = { hauteurFeuillage = it },
+                onValueChange = { 
+                    hauteurFeuillage = it
+                    hauteurFeuillageError = false
+                    hauteurFeuillageErrorMessage = ""
+                },
                 label = { Text("Hauteur du feuillage (m)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = hauteurFeuillageError,
+                supportingText = {
+                    if (hauteurFeuillageError) {
+                        Text(hauteurFeuillageErrorMessage)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // TODO: Ajouter un composant pour sélectionner les matériels accessibles
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
+            OutlinedTextField(
+                value = pente,
+                onValueChange = { 
+                    pente = it
+                    penteError = false
+                    penteErrorMessage = ""
+                },
+                label = { Text("Pente (%)") },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Checkbox(
-                    checked = zoneSensible,
-                    onCheckedChange = { zoneSensible = it },
-                    modifier = Modifier.weight(1f)
-                )
-                Text("Zone sensible", modifier = Modifier.weight(3f))
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Checkbox(
-                    checked = zoneHumide,
-                    onCheckedChange = { zoneHumide = it },
-                    modifier = Modifier.weight(1f)
-                )
-                Text("Zone humide", modifier = Modifier.weight(3f))
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Checkbox(
-                    checked = drainage,
-                    onCheckedChange = { drainage = it },
-                    modifier = Modifier.weight(1f)
-                )
-                Text("Drainage", modifier = Modifier.weight(3f))
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Checkbox(
-                    checked = enherbement,
-                    onCheckedChange = { enherbement = it },
-                    modifier = Modifier.weight(1f)
-                )
-                Text("Enherbement", modifier = Modifier.weight(3f))
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // TODO: Ajouter un composant pour sélectionner la pente
+                isError = penteError,
+                supportingText = {
+                    if (penteError) {
+                        Text(penteErrorMessage)
+                    }
+                }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -260,18 +265,38 @@ fun ParcelleForm(
 
             OutlinedTextField(
                 value = latitude,
-                onValueChange = { latitude = it },
+                onValueChange = { 
+                    latitude = it
+                    latitudeError = false
+                    latitudeErrorMessage = ""
+                },
                 label = { Text("Latitude") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = latitudeError,
+                supportingText = {
+                    if (latitudeError) {
+                        Text(latitudeErrorMessage)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = longitude,
-                onValueChange = { longitude = it },
+                onValueChange = { 
+                    longitude = it
+                    longitudeError = false
+                    longitudeErrorMessage = ""
+                },
                 label = { Text("Longitude") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = longitudeError,
+                supportingText = {
+                    if (longitudeError) {
+                        Text(longitudeErrorMessage)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -285,54 +310,158 @@ fun ParcelleForm(
 
             Button(
                 onClick = {
-                    if (nom.isBlank() || surface.isBlank() || cepage.isBlank() || 
-                        anneePlantation.isBlank() || typeConduite.isBlank()) {
+                    var hasError = false
+                    if (nom.isBlank() || cepage.isBlank() || typeConduite.isBlank()) {
                         showErrors = true
-                    } else {
-                        scope.launch {
-                            if (parcelleId == null) {
-                                viewModel.addParcelle(
-                                    nom = nom,
-                                    surface = surface.toFloat(),
-                                    cepage = cepage,
-                                    anneePlantation = anneePlantation.toInt(),
-                                    typeConduite = typeConduite,
-                                    largeurInterrang = largeurInterrang.toFloatOrNull(),
-                                    hauteurFeuillage = hauteurFeuillage.toFloatOrNull(),
-                                    accessibleMateriel = accessibleMateriel,
-                                    zoneSensible = zoneSensible,
-                                    zoneHumide = zoneHumide,
-                                    drainage = drainage,
-                                    enherbement = enherbement,
-                                    pente = pente,
-                                    typeSol = typeSol,
-                                    inondable = inondable,
-                                    latitude = latitude.toDoubleOrNull(),
-                                    longitude = longitude.toDoubleOrNull()
-                                )
-                            } else {
-                                viewModel.updateParcelle(
-                                    id = parcelleId,
-                                    nom = nom,
-                                    surface = surface.toFloat(),
-                                    cepage = cepage,
-                                    anneePlantation = anneePlantation.toInt(),
-                                    typeConduite = typeConduite,
-                                    largeurInterrang = largeurInterrang.toFloatOrNull(),
-                                    hauteurFeuillage = hauteurFeuillage.toFloatOrNull(),
-                                    accessibleMateriel = accessibleMateriel,
-                                    zoneSensible = zoneSensible,
-                                    zoneHumide = zoneHumide,
-                                    drainage = drainage,
-                                    enherbement = enherbement,
-                                    pente = pente,
-                                    typeSol = typeSol,
-                                    inondable = inondable,
-                                    latitude = latitude.toDoubleOrNull(),
-                                    longitude = longitude.toDoubleOrNull()
-                                )
+                        hasError = true
+                    }
+
+                    // Validation des champs numériques
+                    fun validateNumericField(
+                        value: String,
+                        fieldName: String,
+                        isRequired: Boolean = false,
+                        minValue: Float? = null,
+                        maxValue: Float? = null
+                    ): Pair<Boolean, String> {
+                        if (value.isBlank()) {
+                            return if (isRequired) Pair(true, "Ce champ est obligatoire") else Pair(false, "")
+                        }
+                        return try {
+                            val numericValue = value.toFloat()
+                            when {
+                                minValue != null && numericValue < minValue -> 
+                                    Pair(true, "La valeur doit être supérieure à $minValue")
+                                maxValue != null && numericValue > maxValue -> 
+                                    Pair(true, "La valeur doit être inférieure à $maxValue")
+                                else -> Pair(false, "")
                             }
-                            onNavigateBack()
+                        } catch (e: NumberFormatException) {
+                            Pair(true, "Veuillez entrer un nombre valide")
+                        }
+                    }
+
+                    // Validation de chaque champ numérique
+                    val surfaceValidation = validateNumericField(surface, "Surface", isRequired = true, minValue = 0f)
+                    if (surfaceValidation.first) {
+                        surfaceError = true
+                        surfaceErrorMessage = surfaceValidation.second
+                        hasError = true
+                    }
+
+                    val anneePlantationValidation = validateNumericField(anneePlantation, "Année de plantation", isRequired = true, minValue = 1900f, maxValue = 2100f)
+                    if (anneePlantationValidation.first) {
+                        anneePlantationError = true
+                        anneePlantationErrorMessage = anneePlantationValidation.second
+                        hasError = true
+                    }
+
+                    val largeurInterrangValidation = validateNumericField(largeurInterrang, "Largeur interrang", minValue = 0f)
+                    if (largeurInterrangValidation.first) {
+                        largeurInterrangError = true
+                        largeurInterrangErrorMessage = largeurInterrangValidation.second
+                        hasError = true
+                    }
+
+                    val hauteurFeuillageValidation = validateNumericField(hauteurFeuillage, "Hauteur du feuillage", minValue = 0f)
+                    if (hauteurFeuillageValidation.first) {
+                        hauteurFeuillageError = true
+                        hauteurFeuillageErrorMessage = hauteurFeuillageValidation.second
+                        hasError = true
+                    }
+
+                    val penteValidation = validateNumericField(pente, "Pente", minValue = 0f, maxValue = 100f)
+                    if (penteValidation.first) {
+                        penteError = true
+                        penteErrorMessage = penteValidation.second
+                        hasError = true
+                    }
+
+                    val latitudeValidation = validateNumericField(latitude, "Latitude", minValue = -90f, maxValue = 90f)
+                    if (latitudeValidation.first) {
+                        latitudeError = true
+                        latitudeErrorMessage = latitudeValidation.second
+                        hasError = true
+                    }
+
+                    val longitudeValidation = validateNumericField(longitude, "Longitude", minValue = -180f, maxValue = 180f)
+                    if (longitudeValidation.first) {
+                        longitudeError = true
+                        longitudeErrorMessage = longitudeValidation.second
+                        hasError = true
+                    }
+
+                    if (!hasError) {
+                        try {
+                            val parcelle = ParcelleEntity(
+                                id = parcelleId ?: 0,
+                                nom = nom,
+                                surface = surface.toFloat(),
+                                cepage = cepage,
+                                anneePlantation = anneePlantation.toInt(),
+                                typeConduite = typeConduite,
+                                largeurInterrang = largeurInterrang.toFloatOrNull(),
+                                hauteurFeuillage = hauteurFeuillage.toFloatOrNull(),
+                                accessibleMateriel = accessibleMateriel,
+                                zoneSensible = zoneSensible,
+                                zoneHumide = zoneHumide,
+                                drainage = drainage,
+                                enherbement = enherbement,
+                                pente = pente,
+                                typeSol = typeSol,
+                                inondable = inondable,
+                                latitude = latitude.toDoubleOrNull(),
+                                longitude = longitude.toDoubleOrNull()
+                            )
+
+                            scope.launch {
+                                if (parcelleId == null) {
+                                    viewModel.addParcelle(
+                                        nom = parcelle.nom,
+                                        surface = parcelle.surface,
+                                        cepage = parcelle.cepage,
+                                        anneePlantation = parcelle.anneePlantation,
+                                        typeConduite = parcelle.typeConduite,
+                                        largeurInterrang = parcelle.largeurInterrang,
+                                        hauteurFeuillage = parcelle.hauteurFeuillage,
+                                        accessibleMateriel = parcelle.accessibleMateriel,
+                                        zoneSensible = parcelle.zoneSensible,
+                                        zoneHumide = parcelle.zoneHumide,
+                                        drainage = parcelle.drainage,
+                                        enherbement = parcelle.enherbement,
+                                        pente = parcelle.pente,
+                                        typeSol = parcelle.typeSol,
+                                        inondable = parcelle.inondable,
+                                        latitude = parcelle.latitude,
+                                        longitude = parcelle.longitude
+                                    )
+                                } else {
+                                    viewModel.updateParcelle(
+                                        id = parcelle.id,
+                                        nom = parcelle.nom,
+                                        surface = parcelle.surface,
+                                        cepage = parcelle.cepage,
+                                        anneePlantation = parcelle.anneePlantation,
+                                        typeConduite = parcelle.typeConduite,
+                                        largeurInterrang = parcelle.largeurInterrang,
+                                        hauteurFeuillage = parcelle.hauteurFeuillage,
+                                        accessibleMateriel = parcelle.accessibleMateriel,
+                                        zoneSensible = parcelle.zoneSensible,
+                                        zoneHumide = parcelle.zoneHumide,
+                                        drainage = parcelle.drainage,
+                                        enherbement = parcelle.enherbement,
+                                        pente = parcelle.pente,
+                                        typeSol = parcelle.typeSol,
+                                        inondable = parcelle.inondable,
+                                        latitude = parcelle.latitude,
+                                        longitude = parcelle.longitude
+                                    )
+                                }
+                                onNavigateBack()
+                            }
+                        } catch (e: NumberFormatException) {
+                            // Gestion des erreurs de conversion
+                            showErrors = true
                         }
                     }
                 },
