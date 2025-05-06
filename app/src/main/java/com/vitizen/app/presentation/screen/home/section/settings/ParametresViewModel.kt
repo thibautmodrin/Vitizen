@@ -52,7 +52,7 @@ class ParametresViewModel @Inject constructor(
     init {
         loadInformationsGenerales()
         viewModelScope.launch {
-            operateurRepository.getAll().collect { operateursList ->
+            operateurRepository.getAllOperateurs().collect { operateursList ->
                 _operateurs.value = operateursList
             }
         }
@@ -123,14 +123,14 @@ class ParametresViewModel @Inject constructor(
                 diplomes = diplomes,
                 materielMaitrise = materielMaitrise
             )
-            operateurRepository.insert(operateur)
+            operateurRepository.addOperateur(operateur)
             _isOperatorExpanded.value = true
         }
     }
 
     fun deleteOperateur(operateur: Operateur) {
         viewModelScope.launch {
-            operateurRepository.delete(operateur)
+            operateurRepository.deleteOperateur(operateur)
         }
     }
 
@@ -173,7 +173,7 @@ class ParametresViewModel @Inject constructor(
                 diplomes = diplomes,
                 materielMaitrise = materielMaitrise
             )
-            operateurRepository.update(operateur)
+            operateurRepository.updateOperateur(operateur)
         }
     }
 

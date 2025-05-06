@@ -2,6 +2,7 @@ package com.vitizen.app.presentation.screen.home.section.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,7 +34,6 @@ fun InformationsGeneralesForm(
     var codePostalError by remember { mutableStateOf(false) }
     var surfaceTotaleErrorMessage by remember { mutableStateOf("") }
 
-    var modeCultureExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(informationsId) {
         informationsId?.let { id ->
@@ -53,7 +53,7 @@ fun InformationsGeneralesForm(
                 title = { Text(if (informationsId == null) "Ajouter des informations" else "Modifier les informations") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                     }
                 }
             )

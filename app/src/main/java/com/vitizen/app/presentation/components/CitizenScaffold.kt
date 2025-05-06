@@ -17,7 +17,7 @@ fun CitizenScaffold(
     modifier: Modifier = Modifier,
     content: @Composable (innerPadding: PaddingValues) -> Unit
 ) {
-    val colorScheme = MaterialTheme.colorScheme
+
     
     Scaffold(
         modifier = modifier,

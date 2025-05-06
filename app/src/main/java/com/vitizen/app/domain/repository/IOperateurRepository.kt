@@ -4,9 +4,9 @@ import com.vitizen.app.domain.model.Operateur
 import kotlinx.coroutines.flow.Flow
 
 interface IOperateurRepository {
-    fun getAll(): Flow<List<Operateur>>
-    suspend fun getById(id: Long): Operateur?
-    suspend fun insert(operateur: Operateur): Long
-    suspend fun update(operateur: Operateur)
-    suspend fun delete(operateur: Operateur)
+    fun getAllOperateurs(): Flow<List<Operateur>>
+    suspend fun getOperateurById(id: Long): Operateur?
+    suspend fun addOperateur(operateur: Operateur): Long
+    suspend fun updateOperateur(operateur: Operateur)
+    suspend fun deleteOperateur(operateur: Operateur)
 } 

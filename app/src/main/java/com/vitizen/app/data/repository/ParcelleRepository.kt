@@ -14,22 +14,27 @@ class ParcelleRepository @Inject constructor(
     private val parcelleDao: ParcelleDao
 ) : IParcelleRepository {
 
-    override fun getAllParcelles(): Flow<List<Parcelle>> =
-        parcelleDao.getAllParcelles().map { entities ->
+    override fun getAllParcelles(): Flow<List<Parcelle>> {
+        return parcelleDao.getAllParcelles().map { entities ->
             entities.map { it.toDomain() }
         }
+    }
 
-    override suspend fun getParcelleById(id: Long): Parcelle? =
-        parcelleDao.getParcelleById(id)?.toDomain()
+    override suspend fun getParcelleById(id: Long): Parcelle? {
+        return parcelleDao.getParcelleById(id)?.toDomain()
+    }
 
-    override suspend fun addParcelle(parcelle: Parcelle): Long =
-        parcelleDao.insertParcelle(parcelle.toEntity())
+    override suspend fun addParcelle(parcelle: Parcelle): Long {
+        return parcelleDao.insertParcelle(parcelle.toEntity())
+    }
 
-    override suspend fun updateParcelle(parcelle: Parcelle) =
+    override suspend fun updateParcelle(parcelle: Parcelle) {
         parcelleDao.updateParcelle(parcelle.toEntity())
+    }
 
-    override suspend fun deleteParcelle(parcelle: Parcelle) =
+    override suspend fun deleteParcelle(parcelle: Parcelle) {
         parcelleDao.deleteParcelle(parcelle.toEntity())
+    }
 
     private fun ParcelleEntity.toDomain(): Parcelle {
         return Parcelle(

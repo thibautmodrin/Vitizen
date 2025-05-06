@@ -7,19 +7,19 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface OperateurDao {
     @Query("SELECT * FROM operateurs")
-    fun getAll(): Flow<List<OperateurEntity>>
+    fun getAllOperateurs(): Flow<List<OperateurEntity>>
 
     @Query("SELECT * FROM operateurs WHERE id = :id")
-    suspend fun getById(id: Long): OperateurEntity?
+    suspend fun getOperateurById(id: Long): OperateurEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(operateur: OperateurEntity): Long
+    suspend fun insertOperateur(operateur: OperateurEntity): Long
 
     @Update
-    suspend fun update(operateur: OperateurEntity)
+    suspend fun updateOperateur(operateur: OperateurEntity)
 
     @Delete
-    suspend fun delete(operateur: OperateurEntity)
+    suspend fun deleteOperateur(operateur: OperateurEntity)
 
     @Query("DELETE FROM operateurs")
     suspend fun deleteAll()

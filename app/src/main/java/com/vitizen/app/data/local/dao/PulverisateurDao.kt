@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PulverisateurDao {
-    @Query("SELECT * FROM pulverisateurs ORDER BY nomMateriel ASC")
+    @Query("SELECT * FROM pulverisateurs")
     fun getAllPulverisateurs(): Flow<List<PulverisateurEntity>>
 
     @Query("SELECT * FROM pulverisateurs WHERE id = :id")

@@ -45,7 +45,6 @@ fun SignUpScreen(
     viewModel: SignUpViewModel = hiltViewModel(),
     onNavigateToSignIn: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val uiEvent by viewModel.uiEvent.collectAsState()

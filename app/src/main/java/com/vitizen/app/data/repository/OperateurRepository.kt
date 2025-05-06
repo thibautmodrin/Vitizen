@@ -14,22 +14,27 @@ class OperateurRepository @Inject constructor(
     private val operateurDao: OperateurDao
 ) : IOperateurRepository {
 
-    override fun getAll(): Flow<List<Operateur>> =
-        operateurDao.getAll().map { entities ->
+    override fun getAllOperateurs(): Flow<List<Operateur>> {
+        return operateurDao.getAllOperateurs().map { entities ->
             entities.map { it.toDomain() }
         }
+    }
 
-    override suspend fun getById(id: Long): Operateur? =
-        operateurDao.getById(id)?.toDomain()
+    override suspend fun getOperateurById(id: Long): Operateur? {
+        return operateurDao.getOperateurById(id)?.toDomain()
+    }
 
-    override suspend fun insert(operateur: Operateur): Long =
-        operateurDao.insert(operateur.toEntity())
+    override suspend fun addOperateur(operateur: Operateur): Long {
+        return operateurDao.insertOperateur(operateur.toEntity())
+    }
 
-    override suspend fun update(operateur: Operateur) =
-        operateurDao.update(operateur.toEntity())
+    override suspend fun updateOperateur(operateur: Operateur) {
+        operateurDao.updateOperateur(operateur.toEntity())
+    }
 
-    override suspend fun delete(operateur: Operateur) =
-        operateurDao.delete(operateur.toEntity())
+    override suspend fun deleteOperateur(operateur: Operateur) {
+        operateurDao.deleteOperateur(operateur.toEntity())
+    }
 
     private fun OperateurEntity.toDomain(): Operateur {
         return Operateur(

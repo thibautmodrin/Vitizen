@@ -14,22 +14,27 @@ class PulverisateurRepository @Inject constructor(
     private val pulverisateurDao: PulverisateurDao
 ) : IPulverisateurRepository {
 
-    override fun getAllPulverisateurs(): Flow<List<Pulverisateur>> =
-        pulverisateurDao.getAllPulverisateurs().map { entities ->
+    override fun getAllPulverisateurs(): Flow<List<Pulverisateur>> {
+        return pulverisateurDao.getAllPulverisateurs().map { entities ->
             entities.map { it.toDomain() }
         }
+    }
 
-    override suspend fun getPulverisateurById(id: Long): Pulverisateur? =
-        pulverisateurDao.getPulverisateurById(id)?.toDomain()
+    override suspend fun getPulverisateurById(id: Long): Pulverisateur? {
+        return pulverisateurDao.getPulverisateurById(id)?.toDomain()
+    }
 
-    override suspend fun addPulverisateur(pulverisateur: Pulverisateur): Long =
-        pulverisateurDao.insertPulverisateur(pulverisateur.toEntity())
+    override suspend fun addPulverisateur(pulverisateur: Pulverisateur): Long {
+        return pulverisateurDao.insertPulverisateur(pulverisateur.toEntity())
+    }
 
-    override suspend fun updatePulverisateur(pulverisateur: Pulverisateur) =
+    override suspend fun updatePulverisateur(pulverisateur: Pulverisateur) {
         pulverisateurDao.updatePulverisateur(pulverisateur.toEntity())
+    }
 
-    override suspend fun deletePulverisateur(pulverisateur: Pulverisateur) =
+    override suspend fun deletePulverisateur(pulverisateur: Pulverisateur) {
         pulverisateurDao.deletePulverisateur(pulverisateur.toEntity())
+    }
 
     private fun PulverisateurEntity.toDomain(): Pulverisateur {
         return Pulverisateur(

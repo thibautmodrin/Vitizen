@@ -13,13 +13,13 @@ interface InformationsGeneralesDao {
     suspend fun getById(id: Long): InformationsGeneralesEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(informations: InformationsGeneralesEntity): Long
+    suspend fun insert(informationsGenerales: InformationsGeneralesEntity): Long
 
     @Update
-    suspend fun update(informations: InformationsGeneralesEntity)
+    suspend fun update(informationsGenerales: InformationsGeneralesEntity)
 
     @Delete
-    suspend fun delete(informations: InformationsGeneralesEntity)
+    suspend fun delete(informationsGenerales: InformationsGeneralesEntity)
 
     @Query("DELETE FROM informations_generales")
     suspend fun deleteAll()

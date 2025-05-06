@@ -139,4 +139,14 @@ dependencies {
     // New dependencies
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // MapStruct
+    implementation("org.mapstruct:mapstruct:1.5.5.Final")
+    implementation("org.mapstruct:mapstruct-jdk8:1.5.5.Final")
+    ksp("org.mapstruct:mapstruct-processor:1.5.5.Final")
+}
+
+// Configuration pour MapStruct avec KSP
+ksp {
+    arg("mapstruct.defaultComponentModel", "dagger")
 }

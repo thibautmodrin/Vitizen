@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ParcelleDao {
-    @Query("SELECT * FROM parcelles ORDER BY nom ASC")
+    @Query("SELECT * FROM parcelles")
     fun getAllParcelles(): Flow<List<ParcelleEntity>>
 
     @Query("SELECT * FROM parcelles WHERE id = :id")

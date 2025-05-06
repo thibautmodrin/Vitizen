@@ -110,7 +110,7 @@ private fun TreatmentCard(
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            treatment.comment?.let { comment ->
+            treatment.comment.let { comment ->
                 if (comment.isNotBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(

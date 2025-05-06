@@ -2,6 +2,7 @@ package com.vitizen.app.presentation.components
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -19,7 +20,7 @@ fun ChatFAB(
         modifier = modifier.padding(16.dp)
     ) {
         Icon(
-            imageVector = Icons.Default.Chat,
+            imageVector = Icons.AutoMirrored.Filled.Chat,
             contentDescription = "Chat"
         )
     }
