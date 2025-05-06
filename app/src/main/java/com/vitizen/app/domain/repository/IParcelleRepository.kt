@@ -1,12 +1,12 @@
 package com.vitizen.app.domain.repository
 
-import com.vitizen.app.data.local.entity.ParcelleEntity
+import com.vitizen.app.domain.model.Parcelle
 import kotlinx.coroutines.flow.Flow
 
 interface IParcelleRepository {
-    fun getAllParcelles(): Flow<List<ParcelleEntity>>
-    suspend fun getParcelleById(id: Long): ParcelleEntity?
-    suspend fun addParcelle(parcelle: ParcelleEntity): Long
-    suspend fun updateParcelle(parcelle: ParcelleEntity)
-    suspend fun deleteParcelle(parcelle: ParcelleEntity)
+    fun getAllParcelles(): Flow<List<Parcelle>>
+    suspend fun getParcelleById(id: Long): Parcelle?
+    suspend fun addParcelle(parcelle: Parcelle): Long
+    suspend fun updateParcelle(parcelle: Parcelle)
+    suspend fun deleteParcelle(parcelle: Parcelle)
 } 

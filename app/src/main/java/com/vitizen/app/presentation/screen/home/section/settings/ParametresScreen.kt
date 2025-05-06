@@ -14,10 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.vitizen.app.data.local.entity.InformationsGeneralesEntity
-import com.vitizen.app.data.local.entity.OperateurEntity
-import com.vitizen.app.data.local.entity.ParcelleEntity
-import com.vitizen.app.data.local.entity.PulverisateurEntity
+import com.vitizen.app.domain.model.InformationsGenerales
+import com.vitizen.app.domain.model.Operateur
+import com.vitizen.app.domain.model.Parcelle
+import com.vitizen.app.domain.model.Pulverisateur
 
 data class TabItem(
     val title: String,
@@ -94,7 +94,7 @@ fun InformationsBox(
     onNavigateToForm: (String) -> Unit
 ) {
     val informationsGenerales by viewModel.informationsGenerales.collectAsState()
-    var informationToDelete by remember { mutableStateOf<InformationsGeneralesEntity?>(null) }
+    var informationToDelete by remember { mutableStateOf<InformationsGenerales?>(null) }
 
     LaunchedEffect(informationToDelete) {
         informationToDelete?.let { info ->
@@ -165,7 +165,7 @@ fun OperateursBox(
     onNavigateToForm: (String) -> Unit
 ) {
     val operateurs by viewModel.operateurs.collectAsState()
-    var operateurToDelete by remember { mutableStateOf<OperateurEntity?>(null) }
+    var operateurToDelete by remember { mutableStateOf<Operateur?>(null) }
 
     LaunchedEffect(operateurToDelete) {
         operateurToDelete?.let { operateur ->
@@ -236,7 +236,7 @@ fun PulverisateursBox(
     onNavigateToForm: (String) -> Unit
 ) {
     val pulverisateurs by viewModel.pulverisateurs.collectAsState()
-    var pulverisateurToDelete by remember { mutableStateOf<PulverisateurEntity?>(null) }
+    var pulverisateurToDelete by remember { mutableStateOf<Pulverisateur?>(null) }
 
     LaunchedEffect(pulverisateurToDelete) {
         pulverisateurToDelete?.let { pulverisateur ->
@@ -307,7 +307,7 @@ fun ParcellesBox(
     onNavigateToForm: (String) -> Unit
 ) {
     val parcelles by viewModel.parcelles.collectAsState()
-    var parcelleToDelete by remember { mutableStateOf<ParcelleEntity?>(null) }
+    var parcelleToDelete by remember { mutableStateOf<Parcelle?>(null) }
 
     LaunchedEffect(parcelleToDelete) {
         parcelleToDelete?.let { parcelle ->
@@ -374,7 +374,7 @@ fun ParcellesBox(
 
 @Composable
 fun InformationItem(
-    information: InformationsGeneralesEntity,
+    information: InformationsGenerales,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -455,7 +455,7 @@ fun InformationItem(
 
 @Composable
 fun OperateurItem(
-    operateur: OperateurEntity,
+    operateur: Operateur,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -544,7 +544,7 @@ fun OperateurItem(
 
 @Composable
 fun PulverisateurItem(
-    pulverisateur: PulverisateurEntity,
+    pulverisateur: Pulverisateur,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -623,7 +623,7 @@ fun PulverisateurItem(
 
 @Composable
 fun ParcelleItem(
-    parcelle: ParcelleEntity,
+    parcelle: Parcelle,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {

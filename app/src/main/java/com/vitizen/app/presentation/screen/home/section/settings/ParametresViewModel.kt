@@ -2,11 +2,10 @@ package com.vitizen.app.presentation.screen.home.section.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vitizen.app.data.local.dao.InformationsGeneralesDao
-import com.vitizen.app.data.local.entity.InformationsGeneralesEntity
-import com.vitizen.app.data.local.entity.OperateurEntity
-import com.vitizen.app.data.local.entity.ParcelleEntity
-import com.vitizen.app.data.local.entity.PulverisateurEntity
+import com.vitizen.app.domain.model.InformationsGenerales
+import com.vitizen.app.domain.model.Operateur
+import com.vitizen.app.domain.model.Parcelle
+import com.vitizen.app.domain.model.Pulverisateur
 import com.vitizen.app.domain.repository.IInformationsGeneralesRepository
 import com.vitizen.app.domain.repository.IOperateurRepository
 import com.vitizen.app.domain.repository.IParcelleRepository
@@ -21,7 +20,6 @@ import javax.inject.Inject
 @HiltViewModel
 class ParametresViewModel @Inject constructor(
     private val repository: IInformationsGeneralesRepository,
-    private val informationsGeneralesDao: InformationsGeneralesDao,
     private val operateurRepository: IOperateurRepository,
     private val pulverisateurRepository: IPulverisateurRepository,
     private val parcelleRepository: IParcelleRepository
@@ -33,24 +31,23 @@ class ParametresViewModel @Inject constructor(
     private val _isEditingOperator = MutableStateFlow(false)
     val isEditingOperator: StateFlow<Boolean> = _isEditingOperator.asStateFlow()
 
-    private val _informationsGenerales =
-        MutableStateFlow<List<InformationsGeneralesEntity>>(emptyList())
-    val informationsGenerales: StateFlow<List<InformationsGeneralesEntity>> = _informationsGenerales.asStateFlow()
+    private val _informationsGenerales = MutableStateFlow<List<InformationsGenerales>>(emptyList())
+    val informationsGenerales: StateFlow<List<InformationsGenerales>> = _informationsGenerales.asStateFlow()
 
     private val _isGeneralInfoExpanded = MutableStateFlow(true)
     val isGeneralInfoExpanded: StateFlow<Boolean> = _isGeneralInfoExpanded.asStateFlow()
 
-    private val _operateurs = MutableStateFlow<List<OperateurEntity>>(emptyList())
-    val operateurs: StateFlow<List<OperateurEntity>> = _operateurs.asStateFlow()
+    private val _operateurs = MutableStateFlow<List<Operateur>>(emptyList())
+    val operateurs: StateFlow<List<Operateur>> = _operateurs.asStateFlow()
 
     private val _isOperatorExpanded = MutableStateFlow(true)
     val isOperatorExpanded: StateFlow<Boolean> = _isOperatorExpanded.asStateFlow()
 
-    private val _pulverisateurs = MutableStateFlow<List<PulverisateurEntity>>(emptyList())
-    val pulverisateurs: StateFlow<List<PulverisateurEntity>> = _pulverisateurs.asStateFlow()
+    private val _pulverisateurs = MutableStateFlow<List<Pulverisateur>>(emptyList())
+    val pulverisateurs: StateFlow<List<Pulverisateur>> = _pulverisateurs.asStateFlow()
 
-    private val _parcelles = MutableStateFlow<List<ParcelleEntity>>(emptyList())
-    val parcelles: StateFlow<List<ParcelleEntity>> = _parcelles.asStateFlow()
+    private val _parcelles = MutableStateFlow<List<Parcelle>>(emptyList())
+    val parcelles: StateFlow<List<Parcelle>> = _parcelles.asStateFlow()
 
     init {
         loadInformationsGenerales()
@@ -87,21 +84,21 @@ class ParametresViewModel @Inject constructor(
         codePostal: String
     ) {
         viewModelScope.launch {
-            val informations = InformationsGeneralesEntity(
+            val informations = InformationsGenerales(
                 nomDomaine = nomDomaine,
                 modeCulture = modeCulture,
                 certifications = certifications,
                 surfaceTotale = surfaceTotale,
                 codePostal = codePostal
             )
-            informationsGeneralesDao.insert(informations)
+            repository.insert(informations)
             _isGeneralInfoExpanded.value = true
         }
     }
 
-    fun deleteInformationsGenerales(informations: InformationsGeneralesEntity) {
+    fun deleteInformationsGenerales(informations: InformationsGenerales) {
         viewModelScope.launch {
-            informationsGeneralesDao.delete(informations)
+            repository.delete(informations)
         }
     }
 
@@ -120,7 +117,7 @@ class ParametresViewModel @Inject constructor(
         materielMaitrise: List<String>
     ) {
         viewModelScope.launch {
-            val operateur = OperateurEntity(
+            val operateur = Operateur(
                 nom = nom,
                 disponibleWeekend = disponibleWeekend,
                 diplomes = diplomes,
@@ -131,7 +128,7 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-    fun deleteOperateur(operateur: OperateurEntity) {
+    fun deleteOperateur(operateur: Operateur) {
         viewModelScope.launch {
             operateurRepository.delete(operateur)
         }
@@ -153,11 +150,11 @@ class ParametresViewModel @Inject constructor(
         _isEditingOperator.value = false
     }
 
-    fun getOperateurById(id: Long): OperateurEntity? {
+    fun getOperateurById(id: Long): Operateur? {
         return operateurs.value.find { it.id == id }
     }
 
-    fun getInformationsGeneralesById(id: Long): InformationsGeneralesEntity? {
+    fun getInformationsGeneralesById(id: Long): InformationsGenerales? {
         return informationsGenerales.value.find { it.id == id }
     }
 
@@ -169,7 +166,7 @@ class ParametresViewModel @Inject constructor(
         materielMaitrise: List<String>
     ) {
         viewModelScope.launch {
-            val operateur = OperateurEntity(
+            val operateur = Operateur(
                 id = id,
                 nom = nom,
                 disponibleWeekend = disponibleWeekend,
@@ -189,7 +186,7 @@ class ParametresViewModel @Inject constructor(
         certifications: List<String>
     ) {
         viewModelScope.launch {
-            val informations = InformationsGeneralesEntity(
+            val informations = InformationsGenerales(
                 id = id,
                 nomDomaine = nomDomaine,
                 modeCulture = modeCulture,
@@ -197,11 +194,11 @@ class ParametresViewModel @Inject constructor(
                 codePostal = codePostal,
                 certifications = certifications
             )
-            informationsGeneralesDao.update(informations)
+            repository.update(informations)
         }
     }
 
-    suspend fun getPulverisateurById(id: Long): PulverisateurEntity? {
+    suspend fun getPulverisateurById(id: Long): Pulverisateur? {
         return pulverisateurRepository.getPulverisateurById(id)
     }
 
@@ -219,7 +216,7 @@ class ParametresViewModel @Inject constructor(
         plageVitesseAvancementMax: Float?,
         volumeTotalCuve: Int?
     ) {
-        val pulverisateur = PulverisateurEntity(
+        val pulverisateur = Pulverisateur(
             nomMateriel = nomMateriel,
             modeDeplacement = modeDeplacement,
             nombreRampes = nombreRampes,
@@ -251,7 +248,7 @@ class ParametresViewModel @Inject constructor(
         plageVitesseAvancementMax: Float?,
         volumeTotalCuve: Int?
     ) {
-        val pulverisateur = PulverisateurEntity(
+        val pulverisateur = Pulverisateur(
             id = id,
             nomMateriel = nomMateriel,
             modeDeplacement = modeDeplacement,
@@ -269,7 +266,7 @@ class ParametresViewModel @Inject constructor(
         pulverisateurRepository.updatePulverisateur(pulverisateur)
     }
 
-    suspend fun deletePulverisateur(pulverisateur: PulverisateurEntity) {
+    suspend fun deletePulverisateur(pulverisateur: Pulverisateur) {
         pulverisateurRepository.deletePulverisateur(pulverisateur)
     }
 
@@ -292,7 +289,7 @@ class ParametresViewModel @Inject constructor(
         latitude: Double?,
         longitude: Double?
     ) {
-        val parcelle = ParcelleEntity(
+        val parcelle = Parcelle(
             nom = nom,
             surface = surface,
             cepage = cepage,
@@ -334,7 +331,7 @@ class ParametresViewModel @Inject constructor(
         latitude: Double?,
         longitude: Double?
     ) {
-        val parcelle = ParcelleEntity(
+        val parcelle = Parcelle(
             id = id,
             nom = nom,
             surface = surface,
@@ -357,11 +354,11 @@ class ParametresViewModel @Inject constructor(
         parcelleRepository.updateParcelle(parcelle)
     }
 
-    suspend fun deleteParcelle(parcelle: ParcelleEntity) {
+    suspend fun deleteParcelle(parcelle: Parcelle) {
         parcelleRepository.deleteParcelle(parcelle)
     }
 
-    suspend fun getParcelleById(id: Long): ParcelleEntity? {
+    suspend fun getParcelleById(id: Long): Parcelle? {
         return parcelleRepository.getParcelleById(id)
     }
 }
