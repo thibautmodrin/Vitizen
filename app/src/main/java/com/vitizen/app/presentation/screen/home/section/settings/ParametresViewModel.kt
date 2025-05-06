@@ -25,23 +25,13 @@ class ParametresViewModel @Inject constructor(
     private val parcelleRepository: IParcelleRepository
 ) : ViewModel() {
 
-    private val _isEditingGeneralInfo = MutableStateFlow(false)
-    val isEditingGeneralInfo: StateFlow<Boolean> = _isEditingGeneralInfo.asStateFlow()
-
-    private val _isEditingOperator = MutableStateFlow(false)
-    val isEditingOperator: StateFlow<Boolean> = _isEditingOperator.asStateFlow()
 
     private val _informationsGenerales = MutableStateFlow<List<InformationsGenerales>>(emptyList())
     val informationsGenerales: StateFlow<List<InformationsGenerales>> = _informationsGenerales.asStateFlow()
 
-    private val _isGeneralInfoExpanded = MutableStateFlow(true)
-    val isGeneralInfoExpanded: StateFlow<Boolean> = _isGeneralInfoExpanded.asStateFlow()
 
     private val _operateurs = MutableStateFlow<List<Operateur>>(emptyList())
     val operateurs: StateFlow<List<Operateur>> = _operateurs.asStateFlow()
-
-    private val _isOperatorExpanded = MutableStateFlow(true)
-    val isOperatorExpanded: StateFlow<Boolean> = _isOperatorExpanded.asStateFlow()
 
     private val _pulverisateurs = MutableStateFlow<List<Pulverisateur>>(emptyList())
     val pulverisateurs: StateFlow<List<Pulverisateur>> = _pulverisateurs.asStateFlow()
@@ -92,7 +82,6 @@ class ParametresViewModel @Inject constructor(
                 codePostal = codePostal
             )
             repository.insert(informations)
-            _isGeneralInfoExpanded.value = true
         }
     }
 
@@ -102,13 +91,6 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-    fun setGeneralInfoExpanded(expanded: Boolean) {
-        _isGeneralInfoExpanded.value = expanded
-    }
-
-    fun setOperatorExpanded(expanded: Boolean) {
-        _isOperatorExpanded.value = expanded
-    }
 
     fun addOperateur(
         nom: String,
@@ -124,7 +106,7 @@ class ParametresViewModel @Inject constructor(
                 materielMaitrise = materielMaitrise
             )
             operateurRepository.addOperateur(operateur)
-            _isOperatorExpanded.value = true
+
         }
     }
 
@@ -132,22 +114,6 @@ class ParametresViewModel @Inject constructor(
         viewModelScope.launch {
             operateurRepository.deleteOperateur(operateur)
         }
-    }
-
-    fun startEditingGeneralInfo() {
-        _isEditingGeneralInfo.value = true
-    }
-
-    fun stopEditingGeneralInfo() {
-        _isEditingGeneralInfo.value = false
-    }
-
-    fun startEditingOperator() {
-        _isEditingOperator.value = true
-    }
-
-    fun stopEditingOperator() {
-        _isEditingOperator.value = false
     }
 
     fun getOperateurById(id: Long): Operateur? {
