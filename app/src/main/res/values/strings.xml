@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Vitizen</string>
     <string name="web_client_id">66032472244-0ia1ibu78eu7s1jj3o6rrfabpfi3v6e1.apps.googleusercontent.com</string>
+    <string name="maps_api_key">AIzaSyA5ou3GHwDANcypqp_bXudlFCUan9JziOw</string>
 </resources>

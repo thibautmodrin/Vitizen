@@ -6,13 +6,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vitizen.app.data.local.entity.ParcelleEntity
 import kotlinx.coroutines.launch
+import com.vitizen.app.presentation.components.OsmMapPicker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +59,9 @@ fun ParcelleForm(
     var latitudeErrorMessage by remember { mutableStateOf("") }
     var longitudeErrorMessage by remember { mutableStateOf("") }
 
+    var showMapPicker by remember { mutableStateOf(false) }
+    var postalCode by remember { mutableStateOf("") }
+
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(parcelleId) {
@@ -80,6 +86,19 @@ fun ParcelleForm(
                 longitude = parcelle.longitude?.toString() ?: ""
             }
         }
+    }
+
+    if (showMapPicker) {
+        OsmMapPicker(
+            initialLatitude = latitude.toDoubleOrNull(),
+            initialLongitude = longitude.toDoubleOrNull(),
+            postalCode = postalCode,
+            onLocationSelected = { lat, lng ->
+                latitude = lat.toString()
+                longitude = lng.toString()
+            },
+            onDismiss = { showMapPicker = false }
+        )
     }
 
     Scaffold(
@@ -265,40 +284,67 @@ fun ParcelleForm(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = latitude,
-                onValueChange = { 
-                    latitude = it
-                    latitudeError = false
-                    latitudeErrorMessage = ""
-                },
-                label = { Text("Latitude") },
-                modifier = Modifier.fillMaxWidth(),
-                isError = latitudeError,
-                supportingText = {
-                    if (latitudeError) {
-                        Text(latitudeErrorMessage)
-                    }
-                }
+                value = postalCode,
+                onValueChange = { postalCode = it },
+                label = { Text("Code postal") },
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = longitude,
-                onValueChange = { 
-                    longitude = it
-                    longitudeError = false
-                    longitudeErrorMessage = ""
-                },
-                label = { Text("Longitude") },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                isError = longitudeError,
-                supportingText = {
-                    if (longitudeError) {
-                        Text(longitudeErrorMessage)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = latitude,
+                    onValueChange = { 
+                        latitude = it
+                        latitudeError = false
+                        latitudeErrorMessage = ""
+                    },
+                    label = { Text("Latitude") },
+                    modifier = Modifier.weight(1f),
+                    isError = latitudeError,
+                    supportingText = {
+                        if (latitudeError) {
+                            Text(latitudeErrorMessage)
+                        }
                     }
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                OutlinedTextField(
+                    value = longitude,
+                    onValueChange = { 
+                        longitude = it
+                        longitudeError = false
+                        longitudeErrorMessage = ""
+                    },
+                    label = { Text("Longitude") },
+                    modifier = Modifier.weight(1f),
+                    isError = longitudeError,
+                    supportingText = {
+                        if (longitudeError) {
+                            Text(longitudeErrorMessage)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = { showMapPicker = true },
+                    modifier = Modifier.align(Alignment.Bottom)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Map,
+                        contentDescription = "Sélectionner sur la carte"
+                    )
                 }
-            )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

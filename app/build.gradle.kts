@@ -35,6 +35,7 @@ android {
         }
 
         buildConfigField("String", "OPENAI_API_KEY", "\"${localProperties.getProperty("OPENAI_API_KEY", "")}\"")
+        manifestPlaceholders["MAPS_API_KEY"] = localProperties.getProperty("MAPS_API_KEY", "")
     }
 
     buildTypes {
@@ -144,6 +145,15 @@ dependencies {
     implementation("org.mapstruct:mapstruct:1.5.5.Final")
     implementation("org.mapstruct:mapstruct-jdk8:1.5.5.Final")
     ksp("org.mapstruct:mapstruct-processor:1.5.5.Final")
+
+    // Remplacer Google Maps par Osmdroid
+    implementation("org.osmdroid:osmdroid-android:6.1.16")
+    implementation("org.osmdroid:osmdroid-wms:6.1.16")
+    implementation("org.osmdroid:osmdroid-mapsforge:6.1.16")
+
+    // Google Maps
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:2.15.0")
 }
 
 // Configuration pour MapStruct avec KSP
