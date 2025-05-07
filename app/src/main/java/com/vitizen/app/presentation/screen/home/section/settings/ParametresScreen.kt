@@ -372,6 +372,7 @@ fun ParcellesBox(
     var newParcelle by remember { mutableStateOf(ParcelleInfo("", "", "", 0.0, 0.0)) }
     var isEditingParcelle by remember { mutableStateOf(false) }
     var parcelleToEdit by remember { mutableStateOf<Parcelle?>(null) }
+    var parcelleToDelete by remember { mutableStateOf<Parcelle?>(null) }
     var myLocationOverlay: MyLocationNewOverlay? by remember { mutableStateOf(null) }
     var parcelleMarkers by remember { mutableStateOf(listOf<Marker>()) }
     val parcelles by viewModel.parcelles.collectAsState()
@@ -508,6 +509,32 @@ fun ParcellesBox(
                         parcelleToEdit = null
                     }
                 ) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
+    // Dialog de confirmation de suppression
+    if (parcelleToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { parcelleToDelete = null },
+            title = { Text("Confirmer la suppression") },
+            text = { Text("Voulez-vous vraiment supprimer cette parcelle ?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        parcelleToDelete?.let { parcelle ->
+                            viewModel.deleteParcelle(parcelle)
+                            parcelleToDelete = null
+                        }
+                    }
+                ) {
+                    Text("Supprimer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { parcelleToDelete = null }) {
                     Text("Annuler")
                 }
             }
@@ -755,7 +782,7 @@ fun ParcellesBox(
                                     )
                                 }
                                 IconButton(
-                                    onClick = { viewModel.deleteParcelle(parcelle) },
+                                    onClick = { parcelleToDelete = parcelle },
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
