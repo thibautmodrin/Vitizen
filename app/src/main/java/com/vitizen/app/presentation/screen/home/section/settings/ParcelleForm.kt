@@ -109,11 +109,17 @@ fun ParcelleForm(
                         initialLatitude = selectedLatitude,
                         initialLongitude = selectedLongitude,
                         postalCode = codePostal,
-                        onLocationSelected = { lat, lon ->
-                            selectedLatitude = lat
-                            selectedLongitude = lon
-                            latitude = lat.toString()
-                            longitude = lon.toString()
+                        onLocationSelected = { parcelles ->
+                            if (parcelles.isNotEmpty()) {
+                                val parcelle = parcelles.first()
+                                selectedLatitude = parcelle.latitude
+                                selectedLongitude = parcelle.longitude
+                                latitude = parcelle.latitude.toString()
+                                longitude = parcelle.longitude.toString()
+                                nom = parcelle.name
+                                surface = parcelle.surface
+                                cepage = parcelle.cepage
+                            }
                             showMapPicker = false
                         },
                         onDismiss = { showMapPicker = false }

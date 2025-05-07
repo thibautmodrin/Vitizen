@@ -6,8 +6,12 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Satellite
 import androidx.compose.material3.*
@@ -16,8 +20,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -34,8 +41,19 @@ import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import org.osmdroid.views.overlay.Overlay
 import java.io.File
+import androidx.compose.ui.graphics.RectangleShape
+import android.os.Handler
+import android.os.Looper
 
 private const val TAG = "OsmMapPicker"
+
+data class ParcelleInfo(
+    val name: String,
+    val surface: String,
+    val cepage: String,
+    val latitude: Double,
+    val longitude: Double
+)
 
 @Composable
 fun rememberMapViewWithLifecycle(lifecycleOwner: LifecycleOwner): MapView {
@@ -72,7 +90,7 @@ fun OsmMapPicker(
     initialLatitude: Double = 46.603354,
     initialLongitude: Double = 1.888334,
     postalCode: String = "",
-    onLocationSelected: (Double, Double) -> Unit,
+    onLocationSelected: (List<ParcelleInfo>) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -85,6 +103,12 @@ fun OsmMapPicker(
     var isSatelliteView by remember { mutableStateOf(false) }
     var selectedLatitude by remember { mutableStateOf(initialLatitude) }
     var selectedLongitude by remember { mutableStateOf(initialLongitude) }
+    var showParcelleDialog by remember { mutableStateOf(false) }
+    var parcelleName by remember { mutableStateOf("") }
+    var parcelleSurface by remember { mutableStateOf("") }
+    var parcelleCepage by remember { mutableStateOf("") }
+    var parcelles by remember { mutableStateOf(listOf<ParcelleInfo>()) }
+    var myLocationOverlay: MyLocationNewOverlay? by remember { mutableStateOf(null) }
 
     DisposableEffect(Unit) {
         // Utilisation du stockage interne de l'application
@@ -145,146 +169,319 @@ fun OsmMapPicker(
         Log.d(TAG, "Permission de localisation: $hasLocationPermission")
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Sélectionner un emplacement - $postalCode") },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { isSatelliteView = !isSatelliteView }) {
-                        Icon(
-                            imageVector = if (isSatelliteView) Icons.Default.Map else Icons.Default.Satellite,
-                            contentDescription = if (isSatelliteView) "Vue carte" else "Vue satellite"
-                        )
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shadowElevation = 8.dp
-            ) {
-                Row(
+    if (showParcelleDialog) {
+        AlertDialog(
+            onDismissRequest = { showParcelleDialog = false },
+            title = { Text("Définir la parcelle") },
+            text = {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Lat: %.6f, Lon: %.6f".format(selectedLatitude, selectedLongitude),
-                        style = MaterialTheme.typography.bodyMedium
+                    OutlinedTextField(
+                        value = parcelleName,
+                        onValueChange = { parcelleName = it },
+                        label = { Text("Nom de la parcelle") },
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Button(
-                        onClick = {
-                            onLocationSelected(selectedLatitude, selectedLongitude)
-                            onDismiss()
-                        }
-                    ) {
-                        Text("Valider")
+                    OutlinedTextField(
+                        value = parcelleSurface,
+                        onValueChange = { parcelleSurface = it },
+                        label = { Text("Surface (ha)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = parcelleCepage,
+                        onValueChange = { parcelleCepage = it },
+                        label = { Text("Cépage") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val newParcelle = ParcelleInfo(
+                            name = parcelleName,
+                            surface = parcelleSurface,
+                            cepage = parcelleCepage,
+                            latitude = selectedLatitude,
+                            longitude = selectedLongitude
+                        )
+                        parcelles = parcelles + newParcelle
+                        parcelleName = ""
+                        parcelleSurface = ""
+                        parcelleCepage = ""
+                        showParcelleDialog = false
                     }
+                ) {
+                    Text("Ajouter")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showParcelleDialog = false }) {
+                    Text("Annuler")
                 }
             }
-        }
-    ) { paddingValues ->
-        Box(
+        )
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Surface(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface
         ) {
-            AndroidView(
-                factory = { mapView },
-                modifier = Modifier.fillMaxSize(),
-                update = { view ->
-                    if (!isMapReady) {
-                        try {
-                            view.apply {
-                                setTileSource(if (isSatelliteView) TileSourceFactory.USGS_SAT else TileSourceFactory.MAPNIK)
-                                setMultiTouchControls(true)
-                                controller.setZoom(15.0)
-                                controller.setCenter(GeoPoint(initialLatitude, initialLongitude))
-
-                                // Configuration des contrôles de zoom
-                                zoomController.setVisibility(CustomZoomButtonsController.Visibility.SHOW_AND_FADEOUT)
-                                Log.d(TAG, "Contrôles de zoom configurés")
-
-                                // Ajout de la boussole
-                                overlayManager.add(CompassOverlay(context, this).apply {
-                                    enableCompass()
-                                })
-                                Log.d(TAG, "Boussole ajoutée")
-
-                                // Ajout de l'overlay de localisation si la permission est accordée
-                                if (hasLocationPermission) {
-                                    overlayManager.add(MyLocationNewOverlay(GpsMyLocationProvider(context), this).apply {
-                                        enableMyLocation()
-                                        enableFollowLocation()
-                                    })
-                                    Log.d(TAG, "Overlay de localisation ajouté")
-                                }
-
-                                // Ajout de l'overlay de sélection
-                                overlayManager.add(object : Overlay() {
-                                    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
-                                        val projection = mapView.projection
-                                        val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
-                                        
-                                        // Mise à jour des coordonnées sélectionnées
-                                        selectedLatitude = geoPoint.latitude
-                                        selectedLongitude = geoPoint.longitude
-                                        
-                                        // Suppression de l'ancien marqueur
-                                        selectedMarker?.let { overlayManager.remove(it) }
-                                        
-                                        // Création du nouveau marqueur
-                                        selectedMarker = Marker(mapView).apply {
-                                            position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
-                                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                            icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
-                                            title = "Position sélectionnée"
-                                            snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
-                                        }
-                                        overlayManager.add(selectedMarker!!)
-                                        
-                                        return true
-                                    }
-                                })
-
-                                // Ajout du marqueur initial si des coordonnées sont fournies
-                                if (initialLatitude != 0.0 && initialLongitude != 0.0) {
-                                    selectedMarker = Marker(this).apply {
-                                        position = GeoPoint(initialLatitude, initialLongitude)
-                                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                        icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
-                                        title = "Position sélectionnée"
-                                        snippet = "Lat: $initialLatitude, Lon: $initialLongitude"
-                                    }
-                                    overlayManager.add(selectedMarker!!)
-                                }
-
-                                invalidate()
-                                isMapReady = true
-                                Log.d(TAG, "Carte initialisée avec zoom=15.0 et centre=$initialLatitude,$initialLongitude")
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("Ajouter des parcelles - $postalCode") },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
                             }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Erreur lors de l'initialisation de la carte", e)
+                        },
+                        actions = {
+                            IconButton(onClick = { isSatelliteView = !isSatelliteView }) {
+                                Icon(
+                                    imageVector = if (isSatelliteView) Icons.Default.Map else Icons.Default.Satellite,
+                                    contentDescription = if (isSatelliteView) "Vue carte" else "Vue satellite"
+                                )
+                            }
                         }
-                    } else {
-                        try {
-                            // Mise à jour de la source des tuiles si la vue satellite change
-                            view.setTileSource(if (isSatelliteView) TileSourceFactory.USGS_SAT else TileSourceFactory.MAPNIK)
-                            view.invalidate()
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Erreur lors de l'invalidation de la carte", e)
+                    )
+                },
+                bottomBar = {
+                    Column {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shadowElevation = 8.dp
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    "Parcelles ajoutées (${parcelles.size})",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp)
+                                ) {
+                                    items(parcelles) { parcelle ->
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 0.5.dp),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                            ),
+                                            shape = RectangleShape
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.weight(1f),
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        parcelle.name,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        maxLines = 1,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Text(
+                                                        "${parcelle.surface} ha",
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                    Text(
+                                                        parcelle.cepage,
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = {
+                                                        parcelles = parcelles.filter { it != parcelle }
+                                                    },
+                                                    modifier = Modifier.size(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Delete,
+                                                        contentDescription = "Supprimer",
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shadowElevation = 8.dp
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Lat: %.6f, Lon: %.6f".format(selectedLatitude, selectedLongitude),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Row {
+                                    Button(
+                                        onClick = { showParcelleDialog = true },
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    ) {
+                                        Text("Définir")
+                                    }
+                                    Button(
+                                        onClick = {
+                                            onLocationSelected(parcelles)
+                                            onDismiss()
+                                        },
+                                        enabled = parcelles.isNotEmpty()
+                                    ) {
+                                        Text("Valider")
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            )
+            ) { paddingValues ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    AndroidView(
+                        factory = { mapView },
+                        modifier = Modifier.fillMaxSize(),
+                        update = { view ->
+                            if (!isMapReady) {
+                                try {
+                                    view.apply {
+                                        setTileSource(if (isSatelliteView) TileSourceFactory.USGS_SAT else TileSourceFactory.MAPNIK)
+                                        setMultiTouchControls(true)
+                                        controller.setZoom(15.0)
+                                        controller.setCenter(GeoPoint(initialLatitude, initialLongitude))
+
+                                        // Configuration des contrôles de zoom
+                                        zoomController.setVisibility(CustomZoomButtonsController.Visibility.SHOW_AND_FADEOUT)
+                                        Log.d(TAG, "Contrôles de zoom configurés")
+
+                                        // Ajout de la boussole
+                                        overlayManager.add(CompassOverlay(context, this).apply {
+                                            enableCompass()
+                                        })
+                                        Log.d(TAG, "Boussole ajoutée")
+
+                                        // Ajout de l'overlay de localisation si la permission est accordée
+                                        if (hasLocationPermission) {
+                                            myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(context), this).apply {
+                                                enableMyLocation()
+                                                enableFollowLocation()
+                                                runOnFirstFix {
+                                                    val myLocation = myLocation
+                                                    if (myLocation != null) {
+                                                        Handler(Looper.getMainLooper()).post {
+                                                            controller.animateTo(GeoPoint(myLocation.latitude, myLocation.longitude))
+                                                            controller.setZoom(15.0)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            overlayManager.add(myLocationOverlay!!)
+                                            Log.d(TAG, "Overlay de localisation ajouté")
+                                        }
+
+                                        // Ajout de l'overlay de sélection
+                                        overlayManager.add(object : Overlay() {
+                                            override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+                                                val projection = mapView.projection
+                                                val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
+                                                
+                                                // Mise à jour des coordonnées sélectionnées
+                                                selectedLatitude = geoPoint.latitude
+                                                selectedLongitude = geoPoint.longitude
+                                                
+                                                // Suppression de l'ancien marqueur
+                                                selectedMarker?.let { overlayManager.remove(it) }
+                                                
+                                                // Création du nouveau marqueur
+                                                selectedMarker = Marker(mapView).apply {
+                                                    position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
+                                                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                                    title = "Position sélectionnée"
+                                                    snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
+                                                }
+                                                overlayManager.add(selectedMarker!!)
+                                                
+                                                return true
+                                            }
+                                        })
+
+                                        // Ajout des marqueurs pour les parcelles existantes
+                                        parcelles.forEach { parcelle ->
+                                            val marker = Marker(this).apply {
+                                                position = GeoPoint(parcelle.latitude, parcelle.longitude)
+                                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                                icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                                title = parcelle.name
+                                                snippet = "${parcelle.surface} ha - ${parcelle.cepage}"
+                                            }
+                                            overlayManager.add(marker)
+                                        }
+
+                                        invalidate()
+                                        isMapReady = true
+                                        Log.d(TAG, "Carte initialisée avec zoom=15.0 et centre=$initialLatitude,$initialLongitude")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Erreur lors de l'initialisation de la carte", e)
+                                }
+                            } else {
+                                try {
+                                    // Mise à jour de la source des tuiles si la vue satellite change
+                                    view.setTileSource(if (isSatelliteView) TileSourceFactory.USGS_SAT else TileSourceFactory.MAPNIK)
+                                    view.invalidate()
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Erreur lors de l'invalidation de la carte", e)
+                                }
+                            }
+                        }
+                    )
+                }
+            }
         }
     }
 } 
