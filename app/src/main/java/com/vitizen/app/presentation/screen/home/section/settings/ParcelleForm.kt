@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.vitizen.app.data.local.entity.ParcelleEntity
 import kotlinx.coroutines.launch
@@ -60,7 +61,9 @@ fun ParcelleForm(
     var longitudeErrorMessage by remember { mutableStateOf("") }
 
     var showMapPicker by remember { mutableStateOf(false) }
-    var postalCode by remember { mutableStateOf("") }
+    var selectedLatitude by remember { mutableStateOf(46.603354) }
+    var selectedLongitude by remember { mutableStateOf(1.888334) }
+    var codePostal by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
 
@@ -84,21 +87,40 @@ fun ParcelleForm(
                 inondable = parcelle.inondable
                 latitude = parcelle.latitude?.toString() ?: ""
                 longitude = parcelle.longitude?.toString() ?: ""
+                selectedLatitude = parcelle.latitude ?: 46.603354
+                selectedLongitude = parcelle.longitude ?: 1.888334
             }
         }
     }
 
     if (showMapPicker) {
-        OsmMapPicker(
-            initialLatitude = latitude.toDoubleOrNull(),
-            initialLongitude = longitude.toDoubleOrNull(),
-            postalCode = postalCode,
-            onLocationSelected = { lat, lng ->
-                latitude = lat.toString()
-                longitude = lng.toString()
-            },
-            onDismiss = { showMapPicker = false }
-        )
+        Dialog(
+            onDismissRequest = { showMapPicker = false }
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.9f),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    OsmMapPicker(
+                        initialLatitude = selectedLatitude,
+                        initialLongitude = selectedLongitude,
+                        postalCode = codePostal,
+                        onLocationSelected = { lat, lon ->
+                            selectedLatitude = lat
+                            selectedLongitude = lon
+                            latitude = lat.toString()
+                            longitude = lon.toString()
+                            showMapPicker = false
+                        },
+                        onDismiss = { showMapPicker = false }
+                    )
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -284,8 +306,8 @@ fun ParcelleForm(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = postalCode,
-                onValueChange = { postalCode = it },
+                value = codePostal,
+                onValueChange = { codePostal = it },
                 label = { Text("Code postal") },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -304,7 +326,7 @@ fun ParcelleForm(
                         latitudeError = false
                         latitudeErrorMessage = ""
                     },
-                    label = { Text("Latitude") },
+                    label = { Text("Latitude *") },
                     modifier = Modifier.weight(1f),
                     isError = latitudeError,
                     supportingText = {
@@ -316,35 +338,32 @@ fun ParcelleForm(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                OutlinedTextField(
-                    value = longitude,
-                    onValueChange = { 
-                        longitude = it
-                        longitudeError = false
-                        longitudeErrorMessage = ""
-                    },
-                    label = { Text("Longitude") },
-                    modifier = Modifier.weight(1f),
-                    isError = longitudeError,
-                    supportingText = {
-                        if (longitudeError) {
-                            Text(longitudeErrorMessage)
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
                 IconButton(
                     onClick = { showMapPicker = true },
                     modifier = Modifier.align(Alignment.Bottom)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Map,
-                        contentDescription = "Sélectionner sur la carte"
-                    )
+                    Icon(Icons.Default.Map, contentDescription = "Sélectionner sur la carte")
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = longitude,
+                onValueChange = { 
+                    longitude = it
+                    longitudeError = false
+                    longitudeErrorMessage = ""
+                },
+                label = { Text("Longitude *") },
+                modifier = Modifier.fillMaxWidth(),
+                isError = longitudeError,
+                supportingText = {
+                    if (longitudeError) {
+                        Text(longitudeErrorMessage)
+                    }
+                }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 

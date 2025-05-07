@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
-import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.ui.zIndex
 import com.vitizen.app.data.local.preference.FirstConnectionManager
 import com.vitizen.app.presentation.screen.home.section.settings.ParametresScreen
@@ -212,7 +211,7 @@ fun HomePage(
                         .then(if (imeVisible) Modifier.imePadding() else Modifier)
                 ) { page ->
                     when (page) {
-                        0 -> TreatmentScreen(treatmentViewModel, {})
+                        0 -> TreatmentScreen(treatmentViewModel) {}
                         1 -> SuiviScreen(suiviViewModel)
                         2 -> ParametresScreen(
                             viewModel = parametresViewModel,
