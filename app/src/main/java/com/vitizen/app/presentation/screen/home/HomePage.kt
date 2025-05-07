@@ -208,7 +208,8 @@ fun HomePage(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
-                        .then(if (imeVisible) Modifier.imePadding() else Modifier)
+                        .then(if (imeVisible) Modifier.imePadding() else Modifier),
+                    userScrollEnabled = false
                 ) { page ->
                     when (page) {
                         0 -> TreatmentScreen(treatmentViewModel) {}

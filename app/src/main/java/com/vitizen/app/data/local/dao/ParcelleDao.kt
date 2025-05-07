@@ -10,10 +10,10 @@ interface ParcelleDao {
     fun getAllParcelles(): Flow<List<ParcelleEntity>>
 
     @Query("SELECT * FROM parcelles WHERE id = :id")
-    suspend fun getParcelleById(id: Long): ParcelleEntity?
+    suspend fun getParcelleById(id: String): ParcelleEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertParcelle(parcelle: ParcelleEntity): Long
+    suspend fun insertParcelle(parcelle: ParcelleEntity)
 
     @Update
     suspend fun updateParcelle(parcelle: ParcelleEntity)

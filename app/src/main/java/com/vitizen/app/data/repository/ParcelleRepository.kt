@@ -20,12 +20,12 @@ class ParcelleRepository @Inject constructor(
         }
     }
 
-    override suspend fun getParcelleById(id: Long): Parcelle? {
+    override suspend fun getParcelleById(id: String): Parcelle? {
         return parcelleDao.getParcelleById(id)?.toDomain()
     }
 
-    override suspend fun addParcelle(parcelle: Parcelle): Long {
-        return parcelleDao.insertParcelle(parcelle.toEntity())
+    override suspend fun addParcelle(parcelle: Parcelle) {
+        parcelleDao.insertParcelle(parcelle.toEntity())
     }
 
     override suspend fun updateParcelle(parcelle: Parcelle) {
@@ -39,21 +39,12 @@ class ParcelleRepository @Inject constructor(
     private fun ParcelleEntity.toDomain(): Parcelle {
         return Parcelle(
             id = id,
-            nom = nom,
+            name = name,
             surface = surface,
             cepage = cepage,
-            anneePlantation = anneePlantation,
             typeConduite = typeConduite,
-            largeurInterrang = largeurInterrang,
-            hauteurFeuillage = hauteurFeuillage,
-            accessibleMateriel = accessibleMateriel,
-            zoneSensible = zoneSensible,
-            zoneHumide = zoneHumide,
-            drainage = drainage,
-            enherbement = enherbement,
-            pente = pente,
-            typeSol = typeSol,
-            inondable = inondable,
+            largeur = largeur,
+            hauteur = hauteur,
             latitude = latitude,
             longitude = longitude
         )
@@ -62,21 +53,12 @@ class ParcelleRepository @Inject constructor(
     private fun Parcelle.toEntity(): ParcelleEntity {
         return ParcelleEntity(
             id = id,
-            nom = nom,
+            name = name,
             surface = surface,
             cepage = cepage,
-            anneePlantation = anneePlantation,
             typeConduite = typeConduite,
-            largeurInterrang = largeurInterrang,
-            hauteurFeuillage = hauteurFeuillage,
-            accessibleMateriel = accessibleMateriel,
-            zoneSensible = zoneSensible,
-            zoneHumide = zoneHumide,
-            drainage = drainage,
-            enherbement = enherbement,
-            pente = pente,
-            typeSol = typeSol,
-            inondable = inondable,
+            largeur = largeur,
+            hauteur = hauteur,
             latitude = latitude,
             longitude = longitude
         )

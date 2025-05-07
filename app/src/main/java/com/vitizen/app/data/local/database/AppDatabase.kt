@@ -29,7 +29,7 @@ import com.vitizen.app.data.local.entity.UserEntity
         PulverisateurEntity::class,
         ParcelleEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(StringListConverter::class, DateConverter::class)
@@ -51,7 +51,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "vitizen_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

@@ -2,10 +2,14 @@ package com.vitizen.app.presentation.navigation
 
 import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.vitizen.app.presentation.screen.auth.SignInScreen
 import com.vitizen.app.presentation.screen.auth.SignUpScreen
 import com.vitizen.app.presentation.screen.auth.SplashScreen
@@ -19,6 +23,7 @@ import com.vitizen.app.data.local.security.SecureCredentialsManager
 import com.vitizen.app.presentation.screen.home.section.settings.OperateurForm
 import com.vitizen.app.presentation.screen.home.section.settings.PulverisateurForm
 import com.vitizen.app.presentation.screen.home.section.settings.ParcelleForm
+import com.vitizen.app.presentation.screen.home.section.settings.ParcellesView
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -32,85 +37,70 @@ fun MainNavigation(
     
     NavHost(
         navController = navController,
-        startDestination = NavigationRoutes.SPLASH
+        startDestination = Screen.Home.route
     ) {
-        composable(NavigationRoutes.SPLASH) {
-            SplashScreen(
-                onNavigateToAuth = {
-                    navController.navigate(NavigationRoutes.SIGN_IN) {
-                        popUpTo(NavigationRoutes.SPLASH) { inclusive = true }
+        composable(Screen.Home.route) {
+            HomePage(
+                navController = navController,
+                parametresViewModel = parametresViewModel,
+                onNavigateToProfile = { 
+                    navController.navigate(Screen.SignIn.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 },
-                onNavigateToHome = {
-                    navController.navigate(NavigationRoutes.HOME) {
-                        popUpTo(NavigationRoutes.SPLASH) { inclusive = true }
+                onSignOut = { 
+                    navController.navigate(Screen.SignIn.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(NavigationRoutes.SIGN_IN) {
+        composable(Screen.SignIn.route) {
             SignInScreen(
                 viewModel = signInViewModel,
                 signUpViewModel = signUpViewModel,
                 secureCredentialsManager = secureCredentialsManager,
                 onNavigateToSignUp = {
-                    navController.navigate(NavigationRoutes.SIGN_UP) {
-                        popUpTo(NavigationRoutes.SIGN_IN) { inclusive = true }
+                    navController.navigate(Screen.SignUp.route) {
+                        popUpTo(Screen.SignIn.route) { inclusive = true }
                     }
                 },
                 onNavigateToHome = {
-                    navController.navigate(NavigationRoutes.HOME) {
-                        popUpTo(NavigationRoutes.SIGN_IN) { inclusive = true }
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.SignIn.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(NavigationRoutes.SIGN_UP) {
+        composable(Screen.SignUp.route) {
             SignUpScreen(
                 navController = navController,
                 viewModel = signUpViewModel,
                 onNavigateToSignIn = {
-                    navController.navigate(NavigationRoutes.SIGN_IN) {
-                        popUpTo(NavigationRoutes.SIGN_UP) { inclusive = true }
+                    navController.navigate(Screen.SignIn.route) {
+                        popUpTo(Screen.SignUp.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(NavigationRoutes.TERMS) {
+        composable(Screen.Terms.route) {
             TermsAndPrivacyScreen(
                 navController = navController,
                 isPrivacyPolicy = false
             )
         }
 
-        composable(NavigationRoutes.PRIVACY) {
+        composable(Screen.Privacy.route) {
             TermsAndPrivacyScreen(
                 navController = navController,
                 isPrivacyPolicy = true
             )
         }
 
-        composable(NavigationRoutes.HOME) {
-            HomePage(
-                navController = navController,
-                parametresViewModel = parametresViewModel,
-                onNavigateToProfile = { 
-                    navController.navigate(NavigationRoutes.SIGN_IN) {
-                        popUpTo(NavigationRoutes.HOME) { inclusive = true }
-                    }
-                },
-                onSignOut = { 
-                    navController.navigate(NavigationRoutes.SIGN_IN) {
-                        popUpTo(NavigationRoutes.HOME) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        composable(NavigationRoutes.GENERAL_INFO_FORM) { backStackEntry ->
+        composable(Screen.GeneralInfoForm.route) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
             InformationsGeneralesForm(
                 viewModel = parametresViewModel,
@@ -119,7 +109,7 @@ fun MainNavigation(
             )
         }
 
-        composable("${NavigationRoutes.GENERAL_INFO_FORM}/{id}") { backStackEntry ->
+        composable(Screen.GeneralInfoForm.routeWithId) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
             InformationsGeneralesForm(
                 viewModel = parametresViewModel,
@@ -128,14 +118,14 @@ fun MainNavigation(
             )
         }
 
-        composable(NavigationRoutes.OPERATEUR_FORM) {
+        composable(Screen.OperateurForm.route) {
             OperateurForm(
                 viewModel = parametresViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
-        composable("${NavigationRoutes.OPERATEUR_FORM}/{id}") { backStackEntry ->
+        composable(Screen.OperateurForm.routeWithId) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
             OperateurForm(
                 viewModel = parametresViewModel,
@@ -144,14 +134,14 @@ fun MainNavigation(
             )
         }
 
-        composable(NavigationRoutes.PULVERISATEUR_FORM) {
+        composable(Screen.PulverisateurForm.route) {
             PulverisateurForm(
                 viewModel = parametresViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
-        composable("${NavigationRoutes.PULVERISATEUR_FORM}/{id}") { backStackEntry ->
+        composable(Screen.PulverisateurForm.routeWithId) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
             PulverisateurForm(
                 viewModel = parametresViewModel,
@@ -160,20 +150,66 @@ fun MainNavigation(
             )
         }
 
-        composable(NavigationRoutes.PARCELLE_FORM) {
-            ParcelleForm(
-                viewModel = parametresViewModel,
-                onNavigateBack = { navController.popBackStack() }
+        composable(Screen.Parcelles.route) {
+            val parcelles by parametresViewModel.parcelles.collectAsState()
+            ParcellesView(
+                parcelles = parcelles,
+                onParcelleAdded = { parcelle ->
+                    parametresViewModel.addParcelle(parcelle)
+                },
+                onParcelleDeleted = { parcelle ->
+                    parametresViewModel.deleteParcelle(parcelle)
+                }
             )
         }
 
-        composable("${NavigationRoutes.PARCELLE_FORM}/{id}") { backStackEntry ->
-            val id = backStackEntry.arguments?.getString("id")?.toLongOrNull()
+        composable(
+            route = Screen.ParcelleForm.route,
+            arguments = listOf(
+                navArgument("parcelleId") {
+                    type = NavType.StringType
+                    nullable = true
+                }
+            )
+        ) { backStackEntry ->
+            val parcelleId = backStackEntry.arguments?.getString("parcelleId")
+            val parcelle = if (parcelleId != "new") parametresViewModel.getParcelleById(parcelleId!!) else null
+
             ParcelleForm(
-                viewModel = parametresViewModel,
-                parcelleId = id,
-                onNavigateBack = { navController.popBackStack() }
+                parcelle = parcelle,
+                onSave = { parcelle ->
+                    if (parcelle.id.isEmpty()) {
+                        parametresViewModel.addParcelle(parcelle)
+                    } else {
+                        parametresViewModel.updateParcelle(parcelle)
+                    }
+                    navController.popBackStack()
+                },
+                onDismiss = {
+                    navController.popBackStack()
+                }
             )
         }
+    }
+}
+
+sealed class Screen(val route: String) {
+    object Home : Screen("home")
+    object SignIn : Screen("signin")
+    object SignUp : Screen("signup")
+    object Terms : Screen("terms")
+    object Privacy : Screen("privacy")
+    object GeneralInfoForm : Screen("general_info_form") {
+        val routeWithId = "$route/{id}"
+    }
+    object OperateurForm : Screen("operateur_form") {
+        val routeWithId = "$route/{id}"
+    }
+    object PulverisateurForm : Screen("pulverisateur_form") {
+        val routeWithId = "$route/{id}"
+    }
+    object Parcelles : Screen("parcelles")
+    object ParcelleForm : Screen("parcelle_form/{parcelleId}") {
+        fun createRoute(parcelleId: String? = null) = "parcelle_form/${parcelleId ?: "new"}"
     }
 } 

@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.Flow
 
 interface IParcelleRepository {
     fun getAllParcelles(): Flow<List<Parcelle>>
-    suspend fun getParcelleById(id: Long): Parcelle?
-    suspend fun addParcelle(parcelle: Parcelle): Long
+    suspend fun getParcelleById(id: String): Parcelle?
+    suspend fun addParcelle(parcelle: Parcelle)
     suspend fun updateParcelle(parcelle: Parcelle)
     suspend fun deleteParcelle(parcelle: Parcelle)
 } 

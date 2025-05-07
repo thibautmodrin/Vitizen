@@ -51,11 +51,7 @@ class ParametresViewModel @Inject constructor(
                 _pulverisateurs.value = pulverisateurs
             }
         }
-        viewModelScope.launch {
-            parcelleRepository.getAllParcelles().collect { parcelles ->
-                _parcelles.value = parcelles
-            }
-        }
+        loadParcelles()
     }
 
     private fun loadInformationsGenerales() {
@@ -236,95 +232,33 @@ class ParametresViewModel @Inject constructor(
         pulverisateurRepository.deletePulverisateur(pulverisateur)
     }
 
-    suspend fun addParcelle(
-        nom: String,
-        surface: Float,
-        cepage: String,
-        anneePlantation: Int,
-        typeConduite: String,
-        largeurInterrang: Float?,
-        hauteurFeuillage: Float?,
-        accessibleMateriel: List<String>,
-        zoneSensible: Boolean,
-        zoneHumide: Boolean,
-        drainage: Boolean,
-        enherbement: Boolean,
-        pente: String,
-        typeSol: String,
-        inondable: Boolean,
-        latitude: Double?,
-        longitude: Double?
-    ) {
-        val parcelle = Parcelle(
-            nom = nom,
-            surface = surface,
-            cepage = cepage,
-            anneePlantation = anneePlantation,
-            typeConduite = typeConduite,
-            largeurInterrang = largeurInterrang,
-            hauteurFeuillage = hauteurFeuillage,
-            accessibleMateriel = accessibleMateriel,
-            zoneSensible = zoneSensible,
-            zoneHumide = zoneHumide,
-            drainage = drainage,
-            enherbement = enherbement,
-            pente = pente,
-            typeSol = typeSol,
-            inondable = inondable,
-            latitude = latitude,
-            longitude = longitude
-        )
-        parcelleRepository.addParcelle(parcelle)
+    private fun loadParcelles() {
+        viewModelScope.launch {
+            parcelleRepository.getAllParcelles().collect { parcelles ->
+                _parcelles.value = parcelles
+            }
+        }
     }
 
-    suspend fun updateParcelle(
-        id: Long,
-        nom: String,
-        surface: Float,
-        cepage: String,
-        anneePlantation: Int,
-        typeConduite: String,
-        largeurInterrang: Float?,
-        hauteurFeuillage: Float?,
-        accessibleMateriel: List<String>,
-        zoneSensible: Boolean,
-        zoneHumide: Boolean,
-        drainage: Boolean,
-        enherbement: Boolean,
-        pente: String,
-        typeSol: String,
-        inondable: Boolean,
-        latitude: Double?,
-        longitude: Double?
-    ) {
-        val parcelle = Parcelle(
-            id = id,
-            nom = nom,
-            surface = surface,
-            cepage = cepage,
-            anneePlantation = anneePlantation,
-            typeConduite = typeConduite,
-            largeurInterrang = largeurInterrang,
-            hauteurFeuillage = hauteurFeuillage,
-            accessibleMateriel = accessibleMateriel,
-            zoneSensible = zoneSensible,
-            zoneHumide = zoneHumide,
-            drainage = drainage,
-            enherbement = enherbement,
-            pente = pente,
-            typeSol = typeSol,
-            inondable = inondable,
-            latitude = latitude,
-            longitude = longitude
-        )
-        parcelleRepository.updateParcelle(parcelle)
+    fun addParcelle(parcelle: Parcelle) {
+        viewModelScope.launch {
+            parcelleRepository.addParcelle(parcelle)
+        }
     }
 
-    suspend fun deleteParcelle(parcelle: Parcelle) {
-        parcelleRepository.deleteParcelle(parcelle)
+    fun updateParcelle(parcelle: Parcelle) {
+        viewModelScope.launch {
+            parcelleRepository.updateParcelle(parcelle)
+        }
     }
 
-    suspend fun getParcelleById(id: Long): Parcelle? {
-        return parcelleRepository.getParcelleById(id)
+    fun deleteParcelle(parcelle: Parcelle) {
+        viewModelScope.launch {
+            parcelleRepository.deleteParcelle(parcelle)
+        }
+    }
+
+    fun getParcelleById(id: String): Parcelle? {
+        return _parcelles.value.find { it.id == id }
     }
 }
