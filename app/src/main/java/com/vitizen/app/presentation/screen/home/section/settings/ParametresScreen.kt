@@ -48,6 +48,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import org.osmdroid.events.ZoomEvent
 import java.io.File
 
@@ -104,9 +105,7 @@ fun ParametresScreen(
         }
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
+            modifier = Modifier.fillMaxSize()
         ) {
             when (selectedTabIndex) {
                 0 -> InformationsBox(
@@ -358,12 +357,13 @@ fun ParcellesBox(
     var isSatelliteView by remember { mutableStateOf(false) }
     var selectedLatitude by remember { mutableStateOf(46.603354) }
     var selectedLongitude by remember { mutableStateOf(1.888334) }
-    var parcelleName by remember { mutableStateOf("") }
-    var parcelleSurface by remember { mutableStateOf("") }
-    var parcelleCepage by remember { mutableStateOf("") }
-    var parcelles by remember { mutableStateOf(listOf<ParcelleInfo>()) }
+    var showParcelleDialog by remember { mutableStateOf(false) }
+    var newParcelle by remember { mutableStateOf(ParcelleInfo("", "", "", 0.0, 0.0)) }
+    var isEditingParcelle by remember { mutableStateOf(false) }
+    var parcelleToEdit by remember { mutableStateOf<Parcelle?>(null) }
     var myLocationOverlay: MyLocationNewOverlay? by remember { mutableStateOf(null) }
     var parcelleMarkers by remember { mutableStateOf(listOf<Marker>()) }
+    val parcelles by viewModel.parcelles.collectAsState()
 
     LaunchedEffect(Unit) {
         hasLocationPermission = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -381,6 +381,126 @@ fun ParcellesBox(
         }
     }
 
+    // Effet pour mettre à jour les marqueurs des parcelles
+    LaunchedEffect(parcelles) {
+        if (isMapReady) {
+            // Supprimer les anciens marqueurs
+            parcelleMarkers.forEach { marker ->
+                mapView.overlays.remove(marker)
+            }
+            parcelleMarkers = emptyList()
+
+            // Ajouter les nouveaux marqueurs
+            val newMarkers = parcelles.map { parcelle ->
+                Marker(mapView).apply {
+                    position = GeoPoint(parcelle.latitude, parcelle.longitude)
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                    title = parcelle.name
+                    snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
+                }
+            }
+            parcelleMarkers = newMarkers
+            newMarkers.forEach { marker ->
+                mapView.overlays.add(marker)
+            }
+            mapView.invalidate()
+        }
+    }
+
+    // Dialog pour ajouter/modifier une parcelle
+    if (showParcelleDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showParcelleDialog = false
+                isEditingParcelle = false
+                parcelleToEdit = null
+            },
+            title = { Text(if (isEditingParcelle) "Modifier la parcelle" else "Nouvelle parcelle") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = newParcelle.name,
+                        onValueChange = { newParcelle = newParcelle.copy(name = it) },
+                        label = { Text("Nom de la parcelle") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = newParcelle.surface,
+                        onValueChange = { newParcelle = newParcelle.copy(surface = it) },
+                        label = { Text("Surface (ha)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = newParcelle.cepage,
+                        onValueChange = { newParcelle = newParcelle.copy(cepage = it) },
+                        label = { Text("Cépage") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newParcelle.name.isNotBlank() && newParcelle.surface.isNotBlank() && newParcelle.cepage.isNotBlank()) {
+                            if (isEditingParcelle && parcelleToEdit != null) {
+                                // Mise à jour d'une parcelle existante
+                                val updatedParcelle = parcelleToEdit!!.copy(
+                                    name = newParcelle.name,
+                                    surface = newParcelle.surface.toDoubleOrNull() ?: 0.0,
+                                    cepage = newParcelle.cepage,
+                                    latitude = selectedLatitude,
+                                    longitude = selectedLongitude
+                                )
+                                viewModel.updateParcelle(updatedParcelle)
+                            } else {
+                                // Création d'une nouvelle parcelle
+                                val parcelleToAdd = Parcelle(
+                                    id = System.currentTimeMillis().toString(),
+                                    name = newParcelle.name,
+                                    surface = newParcelle.surface.toDoubleOrNull() ?: 0.0,
+                                    cepage = newParcelle.cepage,
+                                    latitude = selectedLatitude,
+                                    longitude = selectedLongitude,
+                                    typeConduite = "",
+                                    largeur = 0.0,
+                                    hauteur = 0.0
+                                )
+                                viewModel.addParcelle(parcelleToAdd)
+                            }
+                            showParcelleDialog = false
+                            isEditingParcelle = false
+                            parcelleToEdit = null
+                            // Réinitialiser le formulaire
+                            newParcelle = ParcelleInfo("", "", "", 0.0, 0.0)
+                            // Supprimer le marqueur de sélection
+                            selectedMarker?.let { mapView.overlays.remove(it) }
+                            selectedMarker = null
+                        }
+                    }
+                ) {
+                    Text(if (isEditingParcelle) "Modifier" else "Ajouter")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { 
+                        showParcelleDialog = false
+                        isEditingParcelle = false
+                        parcelleToEdit = null
+                    }
+                ) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -390,7 +510,7 @@ fun ParcellesBox(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.7f)
+                .weight(1f)
                 .clip(MaterialTheme.shapes.medium)
         ) {
             AndroidView(
@@ -404,12 +524,10 @@ fun ParcellesBox(
                                 controller.setCenter(GeoPoint(selectedLatitude, selectedLongitude))
 
                                 // Configuration des contrôles de zoom
-                                zoomController.setVisibility(CustomZoomButtonsController.Visibility.SHOW_AND_FADEOUT)
+                                zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
 
-                                // Ajout de la boussole
-                                overlays.add(CompassOverlay(context, this).apply {
-                                    enableCompass()
-                                })
+                                // Fixer l'orientation vers le nord
+                                setMapOrientation(0f)
 
                                 // Ajout de l'overlay de localisation si la permission est accordée
                                 if (hasLocationPermission) {
@@ -435,11 +553,17 @@ fun ParcellesBox(
                                         val projection = mapView.projection
                                         val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
                                         
+                                        // Mise à jour immédiate des coordonnées
                                         selectedLatitude = geoPoint.latitude
                                         selectedLongitude = geoPoint.longitude
                                         
-                                        selectedMarker?.let { overlays.remove(it) }
+                                        // Suppression immédiate de l'ancien marqueur
+                                        selectedMarker?.let { 
+                                            overlays.remove(it)
+                                            selectedMarker = null
+                                        }
                                         
+                                        // Création et ajout immédiat du nouveau marqueur
                                         selectedMarker = Marker(mapView).apply {
                                             position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
                                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -448,7 +572,15 @@ fun ParcellesBox(
                                             snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
                                         }
                                         overlays.add(selectedMarker!!)
+                                        mapView.invalidate()
                                         
+                                        return true
+                                    }
+
+                                    override fun onDoubleTap(e: MotionEvent, mapView: MapView): Boolean {
+                                        if (selectedMarker != null) {
+                                            showParcelleDialog = true
+                                        }
                                         return true
                                     }
                                 })
@@ -493,42 +625,32 @@ fun ParcellesBox(
                     contentDescription = if (isSatelliteView) "Vue carte" else "Vue satellite"
                 )
             }
-        }
 
-        // Barre de coordonnées
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shadowElevation = 8.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "Lat: %.6f, Lon: %.6f".format(selectedLatitude, selectedLongitude),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        onClick = { onNavigateToForm(Screen.ParcelleForm.createRoute(null)) },
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        Text("Définir")
+            // Bouton d'ajout de parcelle (toujours visible)
+            IconButton(
+                onClick = { 
+                    if (selectedMarker != null) {
+                        showParcelleDialog = true
                     }
-                }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp)
+                    .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small)
+                    .alpha(if (selectedMarker != null) 1f else 0.5f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Ajouter une parcelle"
+                )
             }
         }
 
-        // Liste des parcelles (30% de la hauteur)
+        // Liste des parcelles (hauteur fixe de 200 dp)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.3f)
+                .height(200.dp)
                 .background(MaterialTheme.colorScheme.surface)
         ) {
             if (parcelles.isEmpty()) {
@@ -550,37 +672,71 @@ fun ParcellesBox(
                 ) {
                     items(parcelles) { parcelle ->
                         Surface(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { 
+                                    parcelleToEdit = parcelle
+                                    newParcelle = ParcelleInfo(
+                                        name = parcelle.name,
+                                        surface = parcelle.surface.toString(),
+                                        cepage = parcelle.cepage,
+                                        latitude = parcelle.latitude,
+                                        longitude = parcelle.longitude
+                                    )
+                                    selectedLatitude = parcelle.latitude
+                                    selectedLongitude = parcelle.longitude
+                                    isEditingParcelle = true
+                                    showParcelleDialog = true
+                                },
                             color = MaterialTheme.colorScheme.surface,
                             tonalElevation = 2.dp
                         ) {
                             Row(
                                 modifier = Modifier
-                                    .padding(16.dp)
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
                                     .fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
-                                    modifier = Modifier.weight(1f)
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = parcelle.name,
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(
-                                        text = "${parcelle.surface} ha • ${parcelle.cepage}",
+                                        text = "•",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "${parcelle.surface} ha",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "•",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = parcelle.cepage,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                                 IconButton(
-                                    onClick = { /* TODO: Gérer la suppression */ }
+                                    onClick = { viewModel.deleteParcelle(parcelle) },
+                                    modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
                                         contentDescription = "Supprimer",
-                                        tint = MaterialTheme.colorScheme.error
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
