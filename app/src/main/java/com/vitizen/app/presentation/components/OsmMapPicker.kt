@@ -109,6 +109,10 @@ fun OsmMapPicker(
     var parcelleCepage by remember { mutableStateOf("") }
     var parcelles by remember { mutableStateOf(listOf<ParcelleInfo>()) }
     var myLocationOverlay: MyLocationNewOverlay? by remember { mutableStateOf(null) }
+    var showDoubleClickDialog by remember { mutableStateOf(false) }
+    var doubleClickLatitude by remember { mutableStateOf(0.0) }
+    var doubleClickLongitude by remember { mutableStateOf(0.0) }
+    var parcelleMarkers by remember { mutableStateOf(listOf<Marker>()) }
 
     DisposableEffect(Unit) {
         // Utilisation du stockage interne de l'application
@@ -229,6 +233,86 @@ fun OsmMapPicker(
         )
     }
 
+    if (showDoubleClickDialog) {
+        AlertDialog(
+            onDismissRequest = { showDoubleClickDialog = false },
+            title = { Text("Position sélectionnée") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Latitude: ${doubleClickLatitude}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "Longitude: ${doubleClickLongitude}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedTextField(
+                        value = parcelleName,
+                        onValueChange = { parcelleName = it },
+                        label = { Text("Nom de la parcelle") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = parcelleSurface,
+                        onValueChange = { parcelleSurface = it },
+                        label = { Text("Surface (ha)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = parcelleCepage,
+                        onValueChange = { parcelleCepage = it },
+                        label = { Text("Cépage") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val newParcelle = ParcelleInfo(
+                            name = parcelleName,
+                            surface = parcelleSurface,
+                            cepage = parcelleCepage,
+                            latitude = doubleClickLatitude,
+                            longitude = doubleClickLongitude
+                        )
+                        parcelles = parcelles + newParcelle
+                        
+                        // Création du marker pour la nouvelle parcelle
+                        val marker = Marker(mapView).apply {
+                            position = GeoPoint(doubleClickLatitude, doubleClickLongitude)
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                            icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                            title = parcelleName
+                            snippet = "${parcelleSurface} ha - ${parcelleCepage}"
+                        }
+                        mapView.overlayManager.add(marker)
+                        parcelleMarkers = parcelleMarkers + marker
+                        
+                        parcelleName = ""
+                        parcelleSurface = ""
+                        parcelleCepage = ""
+                        showDoubleClickDialog = false
+                    }
+                ) {
+                    Text("Ajouter")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDoubleClickDialog = false }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -323,6 +407,11 @@ fun OsmMapPicker(
                                                 }
                                                 IconButton(
                                                     onClick = {
+                                                        // Suppression du marker associé
+                                                        parcelleMarkers.find { it.position.latitude == parcelle.latitude && it.position.longitude == parcelle.longitude }?.let { marker ->
+                                                            mapView.overlayManager.remove(marker)
+                                                            parcelleMarkers = parcelleMarkers.filter { it != marker }
+                                                        }
                                                         parcelles = parcelles.filter { it != parcelle }
                                                     },
                                                     modifier = Modifier.size(28.dp)
@@ -445,6 +534,17 @@ fun OsmMapPicker(
                                                     snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
                                                 }
                                                 overlayManager.add(selectedMarker!!)
+                                                
+                                                return true
+                                            }
+
+                                            override fun onDoubleTap(e: MotionEvent, mapView: MapView): Boolean {
+                                                val projection = mapView.projection
+                                                val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
+                                                
+                                                doubleClickLatitude = geoPoint.latitude
+                                                doubleClickLongitude = geoPoint.longitude
+                                                showDoubleClickDialog = true
                                                 
                                                 return true
                                             }
