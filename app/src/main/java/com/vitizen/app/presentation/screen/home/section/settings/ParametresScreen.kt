@@ -65,6 +65,17 @@ data class ParcelleInfo(
     val longitude: Double
 )
 
+// Ajout des couleurs pour les marqueurs
+private val markerColors = listOf(
+    android.graphics.Color.RED,
+    android.graphics.Color.BLUE,
+    android.graphics.Color.GREEN,
+    android.graphics.Color.MAGENTA,
+    android.graphics.Color.CYAN,
+    android.graphics.Color.YELLOW,
+    android.graphics.Color.DKGRAY
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParametresScreen(
@@ -391,11 +402,13 @@ fun ParcellesBox(
             parcelleMarkers = emptyList()
 
             // Ajouter les nouveaux marqueurs
-            val newMarkers = parcelles.map { parcelle ->
+            val newMarkers = parcelles.mapIndexed { index, parcelle ->
                 Marker(mapView).apply {
                     position = GeoPoint(parcelle.latitude, parcelle.longitude)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)?.apply {
+                        setTint(markerColors[index % markerColors.size])
+                    }
                     title = parcelle.name
                     snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
                 }
@@ -567,7 +580,9 @@ fun ParcellesBox(
                                         selectedMarker = Marker(mapView).apply {
                                             position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
                                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                            icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                            icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)?.apply {
+                                                setTint(markerColors[parcelles.size % markerColors.size])
+                                            }
                                             title = "Position sélectionnée"
                                             snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
                                         }
@@ -703,6 +718,17 @@ fun ParcellesBox(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    // Indicateur de couleur
+                                    Box(
+                                        modifier = Modifier
+                                            .size(12.dp)
+                                            .background(
+                                                color = androidx.compose.ui.graphics.Color(
+                                                    markerColors[parcelles.indexOf(parcelle) % markerColors.size]
+                                                ),
+                                                shape = MaterialTheme.shapes.small
+                                            )
+                                    )
                                     Text(
                                         text = parcelle.name,
                                         style = MaterialTheme.typography.titleMedium
