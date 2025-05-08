@@ -121,8 +121,7 @@ dependencies {
     implementation("com.alphacephei:vosk-android:0.3.47")
     implementation("org.tensorflow:tensorflow-lite:2.9.0")
     
-    // Pour la gestion des permissions
-    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+
 
     // Tests
     testImplementation(libs.junit)
@@ -154,6 +153,12 @@ dependencies {
     // Google Maps
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.maps.android:maps-compose:2.15.0")
+
+    // Accompanist Permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+
+    // Location Services
+    implementation("com.google.android.gms:play-services-location:21.1.0")
 }
 
 // Configuration pour MapStruct avec KSP
