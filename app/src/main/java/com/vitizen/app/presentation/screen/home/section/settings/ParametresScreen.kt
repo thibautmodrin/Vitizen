@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -19,8 +20,6 @@ import com.vitizen.app.domain.model.InformationsGenerales
 import com.vitizen.app.domain.model.Operateur
 import com.vitizen.app.domain.model.Parcelle
 import com.vitizen.app.domain.model.Pulverisateur
-import com.vitizen.app.presentation.navigation.Screen
-import com.vitizen.app.presentation.components.OsmMapPicker
 import androidx.compose.ui.viewinterop.AndroidView
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -36,7 +35,6 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import org.osmdroid.views.overlay.Overlay
-import org.osmdroid.views.overlay.compass.CompassOverlay
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import androidx.lifecycle.Lifecycle
@@ -44,13 +42,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import org.osmdroid.config.Configuration
 import org.osmdroid.views.CustomZoomButtonsController
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
-import org.osmdroid.events.ZoomEvent
-import java.io.File
+import org.osmdroid.views.overlay.Polygon
+import android.graphics.Color as AndroidColor
 
 data class TabItem(
     val title: String,
@@ -364,6 +359,11 @@ fun ParcellesBox(
     var myLocationOverlay: MyLocationNewOverlay? by remember { mutableStateOf(null) }
     var parcelleMarkers by remember { mutableStateOf(listOf<Marker>()) }
     val parcelles by viewModel.parcelles.collectAsState()
+    
+    // Nouveaux états pour le mode polygone
+    var modePolygoneActif by remember { mutableStateOf(false) }
+    var polygonPoints by remember { mutableStateOf(mutableListOf<GeoPoint>()) }
+    var drawnPolygon: Polygon? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) {
         hasLocationPermission = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -415,6 +415,12 @@ fun ParcellesBox(
                 showParcelleDialog = false
                 isEditingParcelle = false
                 parcelleToEdit = null
+                // Réinitialiser le mode polygone
+                if (modePolygoneActif) {
+                    polygonPoints.clear()
+                    drawnPolygon?.let { mapView.overlays.remove(it) }
+                    drawnPolygon = null
+                }
             },
             title = { Text(if (isEditingParcelle) "Modifier la parcelle" else "Nouvelle parcelle") },
             text = {
@@ -553,26 +559,45 @@ fun ParcellesBox(
                                         val projection = mapView.projection
                                         val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
                                         
-                                        // Mise à jour immédiate des coordonnées
-                                        selectedLatitude = geoPoint.latitude
-                                        selectedLongitude = geoPoint.longitude
-                                        
-                                        // Suppression immédiate de l'ancien marqueur
-                                        selectedMarker?.let { 
-                                            overlays.remove(it)
-                                            selectedMarker = null
+                                        if (modePolygoneActif) {
+                                            // Ajout ou suppression si proche
+                                            val pointIndex = polygonPoints.indexOfFirst { 
+                                                it.distanceToAsDouble(geoPoint) < 5 
+                                            }
+                                            if (pointIndex >= 0) {
+                                                polygonPoints.removeAt(pointIndex)
+                                            } else {
+                                                polygonPoints.add(GeoPoint(geoPoint.latitude, geoPoint.longitude))
+                                            }
+
+                                            // Mise à jour du polygone dessiné
+                                            drawnPolygon?.let { mapView.overlays.remove(it) }
+                                            if (polygonPoints.size >= 3) {
+                                                drawnPolygon = Polygon().apply {
+                                                    points = polygonPoints
+                                                    fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                                    strokeColor = AndroidColor.BLUE
+                                                    strokeWidth = 4f
+                                                }
+                                                mapView.overlays.add(drawnPolygon)
+                                            }
+                                            mapView.invalidate()
+                                        } else {
+                                            // Mode point unique
+                                            selectedLatitude = geoPoint.latitude
+                                            selectedLongitude = geoPoint.longitude
+
+                                            selectedMarker?.let { mapView.overlays.remove(it) }
+                                            selectedMarker = Marker(mapView).apply {
+                                                position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
+                                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                                icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                                title = "Position sélectionnée"
+                                                snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
+                                            }
+                                            mapView.overlays.add(selectedMarker!!)
+                                            mapView.invalidate()
                                         }
-                                        
-                                        // Création et ajout immédiat du nouveau marqueur
-                                        selectedMarker = Marker(mapView).apply {
-                                            position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
-                                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                            icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
-                                            title = "Position sélectionnée"
-                                            snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
-                                        }
-                                        overlays.add(selectedMarker!!)
-                                        mapView.invalidate()
                                         
                                         return true
                                     }
@@ -626,10 +651,38 @@ fun ParcellesBox(
                 )
             }
 
+            // Bouton de basculement mode polygone
+            IconButton(
+                onClick = { 
+                    modePolygoneActif = !modePolygoneActif
+                    if (!modePolygoneActif) {
+                        polygonPoints.clear()
+                        drawnPolygon?.let { mapView.overlays.remove(it) }
+                        drawnPolygon = null
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small)
+            ) {
+                Icon(
+                    imageVector = if (modePolygoneActif) Icons.Default.Close else Icons.Default.Polyline,
+                    contentDescription = if (modePolygoneActif) "Désactiver le mode polygone" else "Activer le mode polygone",
+                    tint = if (modePolygoneActif) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            }
+
             // Bouton d'ajout de parcelle (toujours visible)
             IconButton(
                 onClick = { 
-                    if (selectedMarker != null) {
+                    if (modePolygoneActif && polygonPoints.size >= 3) {
+                        // Calcul du centre du polygone
+                        val center = Polygon().apply { points = polygonPoints }.bounds.centerWithDateLine
+                        selectedLatitude = center.latitude
+                        selectedLongitude = center.longitude
+                        showParcelleDialog = true
+                    } else if (!modePolygoneActif && selectedMarker != null) {
                         showParcelleDialog = true
                     }
                 },
@@ -637,7 +690,7 @@ fun ParcellesBox(
                     .align(Alignment.BottomStart)
                     .padding(8.dp)
                     .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small)
-                    .alpha(if (selectedMarker != null) 1f else 0.5f)
+                    .alpha(if ((modePolygoneActif && polygonPoints.size >= 3) || (!modePolygoneActif && selectedMarker != null)) 1f else 0.5f)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
