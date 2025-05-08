@@ -3,6 +3,8 @@
   <component name="CompilerConfiguration">
     <bytecodeTargetLevel>
       <module name="citizen3.app" target="21" />
+      <module name="Vitizen.app" target="17" />
+      <module name="vitizen3.app" target="17" />
     </bytecodeTargetLevel>
   </component>
 </project>
