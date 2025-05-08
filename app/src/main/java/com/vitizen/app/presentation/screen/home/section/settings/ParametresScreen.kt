@@ -382,6 +382,14 @@ fun ParcellesBox(
     // Ajouter un état pour stocker les polygones des parcelles
     var parcellePolygons by remember { mutableStateOf(mapOf<String, Polygon>()) }
 
+    // Ajouter l'état pour le texte d'aide
+    var showHelpText by remember { mutableStateOf(false) }
+
+    // Mettre à jour l'état du texte d'aide quand le mode polygone ou le nombre de points change
+    LaunchedEffect(modePolygoneActif, polygonPointsCount) {
+        showHelpText = modePolygoneActif && polygonPointsCount < 3
+    }
+
     // Fonction de suppression d'une parcelle
     fun deleteParcelle(parcelle: Parcelle) {
         // Supprimer le polygone associé s'il existe
@@ -394,6 +402,10 @@ fun ParcellesBox(
         parcelleMarkers.forEach { marker ->
             if (abs(marker.position.latitude - parcelle.latitude) < 0.0001 &&
                 abs(marker.position.longitude - parcelle.longitude) < 0.0001) {
+                // Fermer l'info-bulle si elle est ouverte
+                if (marker.isInfoWindowShown) {
+                    marker.closeInfoWindow()
+                }
                 mapView.overlays.remove(marker)
             }
         }
@@ -962,6 +974,25 @@ fun ParcellesBox(
                     else 
                         "Ajouter une parcelle"
                 )
+            }
+
+            // Modifier la position du texte d'aide
+            if (showHelpText) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    shape = MaterialTheme.shapes.medium,
+                    tonalElevation = 4.dp
+                ) {
+                    Text(
+                        text = "3 points minimum requis pour créer une parcelle",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
 
