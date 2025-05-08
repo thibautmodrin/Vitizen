@@ -627,11 +627,38 @@ fun ParcellesBox(
                                                     position = newPoint
                                                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                                                     icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
-                                                    if (!modePolygoneActif) {
-                                                        title = "Point ${polygonPoints.size}"
-                                                        snippet = "Lat: ${newPoint.latitude}, Lon: ${newPoint.longitude}"
-                                                    } else {
-                                                        infoWindow = null
+                                                    infoWindow = null
+                                                    setOnMarkerClickListener { marker, mapView ->
+                                                        if (modePolygoneActif) {
+                                                            val index = polygonMarkers.indexOf(marker)
+                                                            if (index >= 0) {
+                                                                // Suppression du point et de son marqueur
+                                                                polygonPoints.removeAt(index)
+                                                                polygonMarkers[index].let { m ->
+                                                                    mapView.overlays.remove(m)
+                                                                    polygonMarkers.removeAt(index)
+                                                                }
+                                                                polygonPointsCount = polygonPoints.size
+
+                                                                // Mise à jour du polygone
+                                                                drawnPolygon?.let { mapView.overlays.remove(it) }
+                                                                if (polygonPoints.size >= 3) {
+                                                                    drawnPolygon = Polygon().apply {
+                                                                        points = polygonPoints.map { it.point }
+                                                                        fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                                                        strokeColor = AndroidColor.BLUE
+                                                                        strokeWidth = 4f
+                                                                    }
+                                                                    mapView.overlays.add(drawnPolygon)
+                                                                } else {
+                                                                    drawnPolygon = null
+                                                                }
+                                                                mapView.invalidate()
+                                                            }
+                                                            true
+                                                        } else {
+                                                            false
+                                                        }
                                                     }
                                                 }
                                                 polygonMarkers.add(newMarker)
