@@ -585,9 +585,9 @@ fun ParcellesBox(
                                 // Désactiver le mode polygone
                                 modePolygoneActif = false
                             } else {
-                                // Supprimer le marqueur de sélection
-                                selectedMarker?.let { mapView.overlays.remove(it) }
-                                selectedMarker = null
+                            // Supprimer le marqueur de sélection
+                            selectedMarker?.let { mapView.overlays.remove(it) }
+                            selectedMarker = null
                             }
                             mapView.invalidate()
                         }
@@ -699,7 +699,36 @@ fun ParcellesBox(
                                                     Math.abs(parcelle.latitude - newPoint.latitude) < tolerance &&
                                                     Math.abs(parcelle.longitude - newPoint.longitude) < tolerance
                                                 }
-                                                polygonPoints.add(PolygonPoint(newPoint, isParcelle))
+
+                                                // Trouver l'index d'insertion optimal
+                                                val insertIndex = if (polygonPoints.size >= 2) {
+                                                    var minDistance = Double.MAX_VALUE
+                                                    var bestIndex = 0
+                                                    
+                                                    // Calculer la distance entre le nouveau point et chaque segment du polygone
+                                                    for (i in 0 until polygonPoints.size) {
+                                                        val currentPoint = polygonPoints[i].point
+                                                        val nextPoint = polygonPoints[(i + 1) % polygonPoints.size].point
+                                                        
+                                                        // Calculer la distance du point au segment
+                                                        val distance = distancePointToSegment(
+                                                            newPoint,
+                                                            currentPoint,
+                                                            nextPoint
+                                                        )
+                                                        
+                                                        if (distance < minDistance) {
+                                                            minDistance = distance
+                                                            bestIndex = (i + 1) % (polygonPoints.size + 1)
+                                                        }
+                                                    }
+                                                    bestIndex
+                                                } else {
+                                                    polygonPoints.size
+                                                }
+
+                                                // Insérer le point à la position optimale
+                                                polygonPoints.add(insertIndex, PolygonPoint(newPoint, isParcelle))
                                                 polygonPointsCount = polygonPoints.size
                                                 
                                                 val newMarker = Marker(mapView).apply {
@@ -707,7 +736,7 @@ fun ParcellesBox(
                                                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                                                     icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
                                                     infoWindow = null
-                                                    title = "Point ${polygonPoints.size}"
+                                                    title = "Point ${insertIndex + 1}"
                                                     setOnMarkerClickListener { clickedMarker, mapView ->
                                                         if (modePolygoneActif) {
                                                             val index = polygonMarkers.indexOf(clickedMarker)
@@ -746,8 +775,13 @@ fun ParcellesBox(
                                                         }
                                                     }
                                                 }
-                                                polygonMarkers.add(newMarker)
+                                                polygonMarkers.add(insertIndex, newMarker)
                                                 mapView.overlays.add(newMarker)
+
+                                                // Mise à jour des numéros des points
+                                                polygonMarkers.forEachIndexed { i, marker ->
+                                                    marker.title = "Point ${i + 1}"
+                                                }
                                             }
 
                                             // Mise à jour du polygone dessiné
@@ -1324,5 +1358,47 @@ fun rememberMapViewWithLifecycle(lifecycleOwner: LifecycleOwner): MapView {
     }
 
     return mapView
+}
+
+// Ajoutez cette fonction utilitaire pour calculer la distance d'un point à un segment
+private fun distancePointToSegment(point: GeoPoint, segmentStart: GeoPoint, segmentEnd: GeoPoint): Double {
+    val x = point.latitude
+    val y = point.longitude
+    val x1 = segmentStart.latitude
+    val y1 = segmentStart.longitude
+    val x2 = segmentEnd.latitude
+    val y2 = segmentEnd.longitude
+
+    val A = x - x1
+    val B = y - y1
+    val C = x2 - x1
+    val D = y2 - y1
+
+    val dot = A * C + B * D
+    val lenSq = C * C + D * D
+    var param = -1.0
+
+    if (lenSq != 0.0) {
+        param = dot / lenSq
+    }
+
+    var xx: Double
+    var yy: Double
+
+    if (param < 0) {
+        xx = x1
+        yy = y1
+    } else if (param > 1) {
+        xx = x2
+        yy = y2
+    } else {
+        xx = x1 + param * C
+        yy = y1 + param * D
+    }
+
+    val dx = x - xx
+    val dy = y - yy
+
+    return Math.sqrt(dx * dx + dy * dy)
 } 
 
