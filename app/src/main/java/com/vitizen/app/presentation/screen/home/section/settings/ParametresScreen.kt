@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,6 +50,7 @@ import android.graphics.Color as AndroidColor
 import kotlin.math.abs
 import java.util.*
 import androidx.compose.foundation.layout.Arrangement
+import com.vitizen.app.R
 
 data class TabItem(
     val title: String,
@@ -76,7 +76,7 @@ fun ParametresScreen(
     viewModel: ParametresViewModel = hiltViewModel(),
     onNavigateToForm: (String) -> Unit,
 ) {
-    var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = remember {
         listOf(
             TabItem("Infos", Icons.Default.Info),
@@ -360,8 +360,8 @@ fun ParcellesBox(
     var isMapReady by remember { mutableStateOf(false) }
     var selectedMarker: Marker? by remember { mutableStateOf(null) }
     var isSatelliteView by remember { mutableStateOf(false) }
-    var selectedLatitude by remember { mutableStateOf(46.603354) }
-    var selectedLongitude by remember { mutableStateOf(1.888334) }
+    var selectedLatitude by remember { mutableDoubleStateOf(46.603354) }
+    var selectedLongitude by remember { mutableDoubleStateOf(1.888334) }
     var showParcelleDialog by remember { mutableStateOf(false) }
     var newParcelle by remember { mutableStateOf(ParcelleInfo("", "", "", 0.0, 0.0)) }
     var isEditingParcelle by remember { mutableStateOf(false) }
@@ -377,7 +377,7 @@ fun ParcellesBox(
     var polygonMarkers by remember { mutableStateOf(mutableListOf<Marker>()) }
     
     // Ajoutez un état pour le nombre de points
-    var polygonPointsCount by remember { mutableStateOf(0) }
+    var polygonPointsCount by remember { mutableIntStateOf(0) }
 
     // Ajouter un état pour stocker les polygones des parcelles
     var parcellePolygons by remember { mutableStateOf(mapOf<String, Polygon>()) }
@@ -463,7 +463,7 @@ fun ParcellesBox(
                     val marker = Marker(mapView).apply {
                     position = GeoPoint(parcelle.latitude, parcelle.longitude)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                        icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
                     title = parcelle.name
                     snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
                 }
@@ -485,20 +485,7 @@ fun ParcellesBox(
         }
     }
 
-    // Fonction pour réinitialiser le formulaire
-    fun resetForm() {
-        newParcelle = ParcelleInfo("", "", "", 0.0, 0.0)
-        selectedLatitude = 46.603354
-        selectedLongitude = 1.888334
-        modePolygoneActif = false
-        polygonPoints.clear()
-        polygonMarkers.clear()
-        drawnPolygon?.let { mapView.overlays.remove(it) }
-        drawnPolygon = null
-        mapView.invalidate()
-        isEditingParcelle = false
-        parcelleToEdit = null
-    }
+
 
     // Dialog pour ajouter/modifier une parcelle
     if (showParcelleDialog) {
@@ -597,9 +584,11 @@ fun ParcellesBox(
                                 // Désactiver le mode polygone
                                 modePolygoneActif = false
                             } else {
-                            // Supprimer le marqueur de sélection
-                            selectedMarker?.let { mapView.overlays.remove(it) }
-                            selectedMarker = null
+                                // Changer l'icône du marqueur en gris après validation
+                                selectedMarker?.let { marker ->
+                                    marker.icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
+                                    mapView.invalidate()
+                                }
                             }
                             mapView.invalidate()
                         }
@@ -817,7 +806,7 @@ fun ParcellesBox(
                                         selectedMarker = Marker(mapView).apply {
                                             position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
                                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                            icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                            icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)
                                             title = "Position sélectionnée"
                                             snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
                                         }
@@ -830,6 +819,29 @@ fun ParcellesBox(
 
                                     override fun onDoubleTap(e: MotionEvent, mapView: MapView): Boolean {
                                         if (selectedMarker != null) {
+                                            // Trouver la parcelle correspondante au marqueur sélectionné
+                                            val parcelle = parcelles.find { parcelle ->
+                                                abs(parcelle.latitude - selectedMarker!!.position.latitude) < 0.0001 &&
+                                                abs(parcelle.longitude - selectedMarker!!.position.longitude) < 0.0001
+                                            }
+
+                                            if (parcelle != null) {
+                                                // Charger les caractéristiques de la parcelle existante
+                                                parcelleToEdit = parcelle
+                                                newParcelle = ParcelleInfo(
+                                                    name = parcelle.name,
+                                                    surface = parcelle.surface.toString(),
+                                                    cepage = parcelle.cepage,
+                                                    latitude = parcelle.latitude,
+                                                    longitude = parcelle.longitude
+                                                )
+                                                isEditingParcelle = true
+                                            } else {
+                                                // Réinitialiser le formulaire pour une nouvelle parcelle
+                                                newParcelle = ParcelleInfo("", "", "", 0.0, 0.0)
+                                                isEditingParcelle = false
+                                                parcelleToEdit = null
+                                            }
                                             showParcelleDialog = true
                                         }
                                         return true
@@ -893,10 +905,10 @@ fun ParcellesBox(
                         // Supprimer le dernier point s'il n'est pas une parcelle
                         val lastPoint = polygonPoints.lastOrNull()
                         if (lastPoint != null && !lastPoint.isParcelle) {
-                            polygonPoints.removeLast()
+                            polygonPoints.removeAt(polygonPoints.lastIndex)
                             polygonMarkers.lastOrNull()?.let { marker ->
                                 mapView.overlays.remove(marker)
-                                polygonMarkers.removeLast()
+                                polygonMarkers.removeAt(polygonMarkers.lastIndex)
                             }
                             // Mettre à jour le polygone
                             drawnPolygon?.let { mapView.overlays.remove(it) }
