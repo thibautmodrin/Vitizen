@@ -27,6 +27,8 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.infowindow.InfoWindow
 import java.util.*
+import org.osmdroid.views.overlay.Polygon
+import android.graphics.Color as AndroidColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,12 +66,23 @@ fun ParcellesView(
                     
                     // Ajouter les marqueurs pour les parcelles existantes
                     parcelles.forEach { parcelle ->
-                        val marker = Marker(this).apply {
-                            position = GeoPoint(parcelle.latitude, parcelle.longitude)
-                            title = parcelle.name
-                            snippet = "${parcelle.surface} ha - ${parcelle.cepage}"
+                        if (parcelle.polygonPoints.isEmpty()) {
+                            val marker = Marker(this).apply {
+                                position = GeoPoint(parcelle.latitude, parcelle.longitude)
+                                title = parcelle.name
+                                snippet = "${parcelle.surface} ha - ${parcelle.cepage}"
+                            }
+                            overlays.add(marker)
+                        } else {
+                            // Ajouter le polygone
+                            val polygon = Polygon().apply {
+                                points = parcelle.polygonPoints
+                                fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                strokeColor = AndroidColor.BLUE
+                                strokeWidth = 4f
+                            }
+                            overlays.add(polygon)
                         }
-                        overlays.add(marker)
                     }
 
                     // Gestion des clics sur la carte

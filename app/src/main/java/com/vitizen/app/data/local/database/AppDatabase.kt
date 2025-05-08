@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.vitizen.app.data.local.converter.DateConverter
 import com.vitizen.app.data.local.converter.StringListConverter
+import com.vitizen.app.data.local.converter.GeoPointListConverter
 import com.vitizen.app.data.local.dao.InformationsGeneralesDao
 import com.vitizen.app.data.local.dao.OperateurDao
 import com.vitizen.app.data.local.dao.ParcelleDao
@@ -29,10 +30,10 @@ import com.vitizen.app.data.local.entity.UserEntity
         PulverisateurEntity::class,
         ParcelleEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
-@TypeConverters(StringListConverter::class, DateConverter::class)
+@TypeConverters(StringListConverter::class, DateConverter::class, GeoPointListConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun informationsGeneralesDao(): InformationsGeneralesDao
     abstract fun operateurDao(): OperateurDao

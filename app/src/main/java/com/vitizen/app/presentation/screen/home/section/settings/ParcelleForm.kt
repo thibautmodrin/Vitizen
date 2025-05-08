@@ -100,7 +100,8 @@ fun ParcelleForm(
                             largeur = largeur.toDoubleOrNull() ?: 0.0,
                             hauteur = hauteur.toDoubleOrNull() ?: 0.0,
                             latitude = parcelle?.latitude ?: 0.0,
-                            longitude = parcelle?.longitude ?: 0.0
+                            longitude = parcelle?.longitude ?: 0.0,
+                            polygonPoints = parcelle?.polygonPoints ?: emptyList()
                         )
                     )
                 }

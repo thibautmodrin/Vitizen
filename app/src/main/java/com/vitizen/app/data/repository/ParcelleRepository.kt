@@ -46,7 +46,8 @@ class ParcelleRepository @Inject constructor(
             largeur = largeur,
             hauteur = hauteur,
             latitude = latitude,
-            longitude = longitude
+            longitude = longitude,
+            polygonPoints = polygonPoints
         )
     }
 
@@ -60,7 +61,8 @@ class ParcelleRepository @Inject constructor(
             largeur = largeur,
             hauteur = hauteur,
             latitude = latitude,
-            longitude = longitude
+            longitude = longitude,
+            polygonPoints = polygonPoints
         )
     }
 } 

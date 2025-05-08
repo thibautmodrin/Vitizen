@@ -49,6 +49,7 @@ import androidx.compose.ui.draw.alpha
 import org.osmdroid.views.overlay.Polygon
 import android.graphics.Color as AndroidColor
 import kotlin.math.abs
+import java.util.*
 
 data class TabItem(
     val title: String,
@@ -380,6 +381,35 @@ fun ParcellesBox(
     // Ajoutez un état pour le point en cours de déplacement
     var movingPointIndex by remember { mutableStateOf<Int?>(null) }
 
+    // Ajouter un état pour stocker les polygones des parcelles
+    var parcellePolygons by remember { mutableStateOf(mapOf<String, Polygon>()) }
+
+    // Fonction de suppression d'une parcelle
+    fun deleteParcelle(parcelle: Parcelle) {
+        // Supprimer le polygone associé s'il existe
+        parcellePolygons[parcelle.id]?.let { polygon ->
+            mapView.overlays.remove(polygon)
+            parcellePolygons = parcellePolygons - parcelle.id
+        }
+        
+        // Supprimer les marqueurs associés à la parcelle
+        parcelleMarkers.forEach { marker ->
+            if (abs(marker.position.latitude - parcelle.latitude) < 0.0001 &&
+                abs(marker.position.longitude - parcelle.longitude) < 0.0001) {
+                mapView.overlays.remove(marker)
+            }
+        }
+        
+        // Mettre à jour la liste des marqueurs
+        parcelleMarkers = parcelleMarkers.filter { marker ->
+            !(abs(marker.position.latitude - parcelle.latitude) < 0.0001 &&
+              abs(marker.position.longitude - parcelle.longitude) < 0.0001)
+        }
+        
+        viewModel.deleteParcelle(parcelle)
+        mapView.invalidate()
+    }
+
     // Mettez à jour le compteur quand les points changent
     LaunchedEffect(polygonPoints) {
         polygonPointsCount = polygonPoints.size
@@ -401,28 +431,45 @@ fun ParcellesBox(
         }
     }
 
-    // Effet pour mettre à jour les marqueurs des parcelles
+    // Effet pour mettre à jour les marqueurs et polygones des parcelles
     LaunchedEffect(parcelles) {
         if (isMapReady) {
-            // Supprimer les anciens marqueurs
+            // Supprimer les anciens marqueurs et polygones
             parcelleMarkers.forEach { marker ->
                 mapView.overlays.remove(marker)
             }
             parcelleMarkers = emptyList()
 
-            // Ajouter les nouveaux marqueurs
-            val newMarkers = parcelles.map { parcelle ->
-                Marker(mapView).apply {
+            // Supprimer tous les polygones existants
+            parcellePolygons.values.forEach { polygon ->
+                mapView.overlays.remove(polygon)
+            }
+            parcellePolygons = emptyMap()
+
+            // Ajouter les nouveaux marqueurs et polygones
+            parcelles.forEach { parcelle ->
+                if (parcelle.polygonPoints.isEmpty()) {
+                    // Ajouter le marqueur uniquement si pas de polygone
+                    val marker = Marker(mapView).apply {
                     position = GeoPoint(parcelle.latitude, parcelle.longitude)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
                     title = parcelle.name
                     snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
                 }
-            }
-            parcelleMarkers = newMarkers
-            newMarkers.forEach { marker ->
+                    parcelleMarkers = parcelleMarkers + marker
                 mapView.overlays.add(marker)
+                } else {
+                    // Ajouter le polygone
+                    val polygon = Polygon().apply {
+                        points = parcelle.polygonPoints
+                        fillColor = AndroidColor.argb(60, 0, 0, 255)
+                        strokeColor = AndroidColor.BLUE
+                        strokeWidth = 4f
+                    }
+                    mapView.overlays.add(polygon)
+                    parcellePolygons = parcellePolygons + (parcelle.id to polygon)
+                }
             }
             mapView.invalidate()
         }
@@ -485,21 +532,23 @@ fun ParcellesBox(
                                     surface = newParcelle.surface.toDoubleOrNull() ?: 0.0,
                                     cepage = newParcelle.cepage,
                                     latitude = selectedLatitude,
-                                    longitude = selectedLongitude
+                                    longitude = selectedLongitude,
+                                    polygonPoints = if (modePolygoneActif) polygonPoints.map { it.point } else emptyList()
                                 )
                                 viewModel.updateParcelle(updatedParcelle)
                             } else {
                                 // Création d'une nouvelle parcelle
                                 val parcelleToAdd = Parcelle(
-                                    id = System.currentTimeMillis().toString(),
+                                    id = UUID.randomUUID().toString(),
                                     name = newParcelle.name,
                                     surface = newParcelle.surface.toDoubleOrNull() ?: 0.0,
                                     cepage = newParcelle.cepage,
-                                    latitude = selectedLatitude,
-                                    longitude = selectedLongitude,
                                     typeConduite = "",
                                     largeur = 0.0,
-                                    hauteur = 0.0
+                                    hauteur = 0.0,
+                                    latitude = if (modePolygoneActif) 0.0 else selectedLatitude,
+                                    longitude = if (modePolygoneActif) 0.0 else selectedLongitude,
+                                    polygonPoints = if (modePolygoneActif) polygonPoints.map { it.point } else emptyList()
                                 )
                                 viewModel.addParcelle(parcelleToAdd)
                             }
@@ -511,6 +560,21 @@ fun ParcellesBox(
                             // Supprimer le marqueur de sélection
                             selectedMarker?.let { mapView.overlays.remove(it) }
                             selectedMarker = null
+                            // Réinitialiser le mode polygone et supprimer les points
+                            if (modePolygoneActif) {
+                                // Supprimer tous les marqueurs des points
+                                polygonMarkers.forEach { marker ->
+                                    mapView.overlays.remove(marker)
+                                }
+                                polygonMarkers.clear()
+                                polygonPoints.clear()
+                                // Supprimer le polygone temporaire
+                                drawnPolygon?.let { mapView.overlays.remove(it) }
+                                drawnPolygon = null
+                                // Désactiver le mode polygone
+                                modePolygoneActif = false
+                            }
+                            mapView.invalidate()
                         }
                     }
                 ) {
@@ -628,9 +692,10 @@ fun ParcellesBox(
                                                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                                                     icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
                                                     infoWindow = null
-                                                    setOnMarkerClickListener { marker, mapView ->
+                                                    title = "Point ${polygonPoints.size}"
+                                                    setOnMarkerClickListener { clickedMarker, mapView ->
                                                         if (modePolygoneActif) {
-                                                            val index = polygonMarkers.indexOf(marker)
+                                                            val index = polygonMarkers.indexOf(clickedMarker)
                                                             if (index >= 0) {
                                                                 // Suppression du point et de son marqueur
                                                                 polygonPoints.removeAt(index)
@@ -639,6 +704,11 @@ fun ParcellesBox(
                                                                     polygonMarkers.removeAt(index)
                                                                 }
                                                                 polygonPointsCount = polygonPoints.size
+
+                                                                // Mise à jour des numéros des points restants
+                                                                polygonMarkers.forEachIndexed { i, marker ->
+                                                                    marker.title = "Point ${i + 1}"
+                                                                }
 
                                                                 // Mise à jour du polygone
                                                                 drawnPolygon?.let { mapView.overlays.remove(it) }
@@ -683,15 +753,15 @@ fun ParcellesBox(
                                             selectedLongitude = geoPoint.longitude
 
                                             selectedMarker?.let { mapView.overlays.remove(it) }
-                                            selectedMarker = Marker(mapView).apply {
-                                                position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
-                                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                                icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
-                                                title = "Position sélectionnée"
-                                                snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
-                                            }
+                                        selectedMarker = Marker(mapView).apply {
+                                            position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
+                                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                            icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                            title = "Position sélectionnée"
+                                            snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
+                                        }
                                             mapView.overlays.add(selectedMarker!!)
-                                            mapView.invalidate()
+                                        mapView.invalidate()
                                         }
                                         
                                         return true
@@ -926,7 +996,7 @@ fun ParcellesBox(
                                     )
                                 }
                                 IconButton(
-                                    onClick = { viewModel.deleteParcelle(parcelle) },
+                                    onClick = { deleteParcelle(parcelle) },
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
