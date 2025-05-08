@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.vitizen.app.presentation.screen.home.section.settings
 
 import androidx.compose.foundation.background
@@ -46,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import org.osmdroid.views.overlay.Polygon
 import android.graphics.Color as AndroidColor
+import kotlin.math.abs
 
 data class TabItem(
     val title: String,
@@ -58,6 +61,11 @@ data class ParcelleInfo(
     val cepage: String,
     val latitude: Double,
     val longitude: Double
+)
+
+data class PolygonPoint(
+    val point: GeoPoint,
+    val isParcelle: Boolean = false
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -360,10 +368,22 @@ fun ParcellesBox(
     var parcelleMarkers by remember { mutableStateOf(listOf<Marker>()) }
     val parcelles by viewModel.parcelles.collectAsState()
     
-    // Nouveaux états pour le mode polygone
+    // Modifiez les états pour le mode polygone
     var modePolygoneActif by remember { mutableStateOf(false) }
-    var polygonPoints by remember { mutableStateOf(mutableListOf<GeoPoint>()) }
+    var polygonPoints by remember { mutableStateOf(mutableListOf<PolygonPoint>()) }
     var drawnPolygon: Polygon? by remember { mutableStateOf(null) }
+    var polygonMarkers by remember { mutableStateOf(mutableListOf<Marker>()) }
+    
+    // Ajoutez un état pour le nombre de points
+    var polygonPointsCount by remember { mutableStateOf(0) }
+
+    // Ajoutez un état pour le point en cours de déplacement
+    var movingPointIndex by remember { mutableStateOf<Int?>(null) }
+
+    // Mettez à jour le compteur quand les points changent
+    LaunchedEffect(polygonPoints) {
+        polygonPointsCount = polygonPoints.size
+    }
 
     LaunchedEffect(Unit) {
         hasLocationPermission = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -417,6 +437,10 @@ fun ParcellesBox(
                 parcelleToEdit = null
                 // Réinitialiser le mode polygone
                 if (modePolygoneActif) {
+                    polygonMarkers.forEach { marker ->
+                        mapView.overlays.remove(marker)
+                    }
+                    polygonMarkers.clear()
                     polygonPoints.clear()
                     drawnPolygon?.let { mapView.overlays.remove(it) }
                     drawnPolygon = null
@@ -560,21 +584,65 @@ fun ParcellesBox(
                                         val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
                                         
                                         if (modePolygoneActif) {
-                                            // Ajout ou suppression si proche
+                                            // Vérifier si on clique sur un point existant
                                             val pointIndex = polygonPoints.indexOfFirst { 
-                                                it.distanceToAsDouble(geoPoint) < 5 
+                                                it.point.distanceToAsDouble(geoPoint) < 5 
                                             }
                                             if (pointIndex >= 0) {
+                                                // Suppression du point et de son marqueur
                                                 polygonPoints.removeAt(pointIndex)
+                                                polygonMarkers[pointIndex].let { marker ->
+                                                    mapView.overlays.remove(marker)
+                                                    polygonMarkers.removeAt(pointIndex)
+                                                }
+                                                polygonPointsCount = polygonPoints.size
+
+                                                // Mise à jour du polygone
+                                                drawnPolygon?.let { mapView.overlays.remove(it) }
+                                                if (polygonPoints.size >= 3) {
+                                                    drawnPolygon = Polygon().apply {
+                                                        points = polygonPoints.map { it.point }
+                                                        fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                                        strokeColor = AndroidColor.BLUE
+                                                        strokeWidth = 4f
+                                                    }
+                                                    mapView.overlays.add(drawnPolygon)
+                                                } else {
+                                                    drawnPolygon = null
+                                                }
+                                                mapView.invalidate()
                                             } else {
-                                                polygonPoints.add(GeoPoint(geoPoint.latitude, geoPoint.longitude))
+                                                // Ajout d'un nouveau point
+                                                val newPoint = GeoPoint(geoPoint.latitude, geoPoint.longitude)
+                                                // Vérifier si le point correspond à une parcelle existante
+                                                val isParcelle = parcelles.any { parcelle ->
+                                                    val tolerance = 0.0001
+                                                    Math.abs(parcelle.latitude - newPoint.latitude) < tolerance &&
+                                                    Math.abs(parcelle.longitude - newPoint.longitude) < tolerance
+                                                }
+                                                polygonPoints.add(PolygonPoint(newPoint, isParcelle))
+                                                polygonPointsCount = polygonPoints.size
+                                                
+                                                val newMarker = Marker(mapView).apply {
+                                                    position = newPoint
+                                                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                                                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                                    if (!modePolygoneActif) {
+                                                        title = "Point ${polygonPoints.size}"
+                                                        snippet = "Lat: ${newPoint.latitude}, Lon: ${newPoint.longitude}"
+                                                    } else {
+                                                        infoWindow = null
+                                                    }
+                                                }
+                                                polygonMarkers.add(newMarker)
+                                                mapView.overlays.add(newMarker)
                                             }
 
                                             // Mise à jour du polygone dessiné
                                             drawnPolygon?.let { mapView.overlays.remove(it) }
                                             if (polygonPoints.size >= 3) {
                                                 drawnPolygon = Polygon().apply {
-                                                    points = polygonPoints
+                                                    points = polygonPoints.map { it.point }
                                                     fillColor = AndroidColor.argb(60, 0, 0, 255)
                                                     strokeColor = AndroidColor.BLUE
                                                     strokeWidth = 4f
@@ -654,12 +722,52 @@ fun ParcellesBox(
             // Bouton de basculement mode polygone
             IconButton(
                 onClick = { 
-                    modePolygoneActif = !modePolygoneActif
+                    // D'abord, supprimer le point unique si on active le mode polygone
                     if (!modePolygoneActif) {
+                        selectedMarker?.let { marker ->
+                            mapView.overlays.remove(marker)
+                            selectedMarker = null
+                            mapView.invalidate()
+                        }
+                    }
+
+                    if (modePolygoneActif) {
+                        // Supprimer le dernier point s'il n'est pas une parcelle
+                        val lastPoint = polygonPoints.lastOrNull()
+                        if (lastPoint != null && !lastPoint.isParcelle) {
+                            polygonPoints.removeLast()
+                            polygonMarkers.lastOrNull()?.let { marker ->
+                                mapView.overlays.remove(marker)
+                                polygonMarkers.removeLast()
+                            }
+                            // Mettre à jour le polygone
+                            drawnPolygon?.let { mapView.overlays.remove(it) }
+                            if (polygonPoints.size >= 3) {
+                                drawnPolygon = Polygon().apply {
+                                    points = polygonPoints.map { it.point }
+                                    fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                    strokeColor = AndroidColor.BLUE
+                                    strokeWidth = 4f
+                                }
+                                mapView.overlays.add(drawnPolygon)
+                            } else {
+                                drawnPolygon = null
+                            }
+                            mapView.invalidate()
+                        }
+
+                        // Nettoyage final
+                        polygonMarkers.forEach { marker ->
+                            mapView.overlays.remove(marker)
+                        }
+                        polygonMarkers.clear()
                         polygonPoints.clear()
                         drawnPolygon?.let { mapView.overlays.remove(it) }
                         drawnPolygon = null
                     }
+
+                    // Changer le mode à la fin
+                    modePolygoneActif = !modePolygoneActif
                 },
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -676,9 +784,9 @@ fun ParcellesBox(
             // Bouton d'ajout de parcelle (toujours visible)
             IconButton(
                 onClick = { 
-                    if (modePolygoneActif && polygonPoints.size >= 3) {
+                    if (modePolygoneActif && polygonPointsCount >= 3) {
                         // Calcul du centre du polygone
-                        val center = Polygon().apply { points = polygonPoints }.bounds.centerWithDateLine
+                        val center = Polygon().apply { points = polygonPoints.map { it.point } }.bounds.centerWithDateLine
                         selectedLatitude = center.latitude
                         selectedLongitude = center.longitude
                         showParcelleDialog = true
@@ -690,11 +798,20 @@ fun ParcellesBox(
                     .align(Alignment.BottomStart)
                     .padding(8.dp)
                     .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small)
-                    .alpha(if ((modePolygoneActif && polygonPoints.size >= 3) || (!modePolygoneActif && selectedMarker != null)) 1f else 0.5f)
+                    .alpha(
+                        if (modePolygoneActif) {
+                            if (polygonPointsCount >= 3) 1f else 0.5f
+                        } else {
+                            if (selectedMarker != null) 1f else 0.5f
+                        }
+                    )
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Ajouter une parcelle"
+                    contentDescription = if (modePolygoneActif) 
+                        "Ajouter une parcelle (${polygonPointsCount}/3 points)" 
+                    else 
+                        "Ajouter une parcelle"
                 )
             }
         }
