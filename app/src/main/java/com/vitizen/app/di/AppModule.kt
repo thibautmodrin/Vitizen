@@ -183,8 +183,14 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideParcelleRepository(parcelleDao: ParcelleDao): IParcelleRepository {
+    fun provideParcelleRepository(parcelleDao: ParcelleDao): ParcelleRepository {
         return ParcelleRepository(parcelleDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideIParcelleRepository(parcelleRepository: ParcelleRepository): IParcelleRepository {
+        return parcelleRepository
     }
 
     @Provides

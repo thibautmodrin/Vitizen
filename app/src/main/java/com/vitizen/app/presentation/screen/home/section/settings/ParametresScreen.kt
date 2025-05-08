@@ -50,6 +50,7 @@ import org.osmdroid.views.overlay.Polygon
 import android.graphics.Color as AndroidColor
 import kotlin.math.abs
 import java.util.*
+import androidx.compose.foundation.layout.Arrangement
 
 data class TabItem(
     val title: String,
@@ -378,9 +379,6 @@ fun ParcellesBox(
     // Ajoutez un état pour le nombre de points
     var polygonPointsCount by remember { mutableStateOf(0) }
 
-    // Ajoutez un état pour le point en cours de déplacement
-    var movingPointIndex by remember { mutableStateOf<Int?>(null) }
-
     // Ajouter un état pour stocker les polygones des parcelles
     var parcellePolygons by remember { mutableStateOf(mapOf<String, Polygon>()) }
 
@@ -475,6 +473,21 @@ fun ParcellesBox(
         }
     }
 
+    // Fonction pour réinitialiser le formulaire
+    fun resetForm() {
+        newParcelle = ParcelleInfo("", "", "", 0.0, 0.0)
+        selectedLatitude = 46.603354
+        selectedLongitude = 1.888334
+        modePolygoneActif = false
+        polygonPoints.clear()
+        polygonMarkers.clear()
+        drawnPolygon?.let { mapView.overlays.remove(it) }
+        drawnPolygon = null
+        mapView.invalidate()
+        isEditingParcelle = false
+        parcelleToEdit = null
+    }
+
     // Dialog pour ajouter/modifier une parcelle
     if (showParcelleDialog) {
         AlertDialog(
@@ -482,16 +495,6 @@ fun ParcellesBox(
                 showParcelleDialog = false
                 isEditingParcelle = false
                 parcelleToEdit = null
-                // Réinitialiser le mode polygone
-                if (modePolygoneActif) {
-                    polygonMarkers.forEach { marker ->
-                        mapView.overlays.remove(marker)
-                    }
-                    polygonMarkers.clear()
-                    polygonPoints.clear()
-                    drawnPolygon?.let { mapView.overlays.remove(it) }
-                    drawnPolygon = null
-                }
             },
             title = { Text(if (isEditingParcelle) "Modifier la parcelle" else "Nouvelle parcelle") },
             text = {
@@ -526,14 +529,15 @@ fun ParcellesBox(
                     onClick = {
                         if (newParcelle.name.isNotBlank() && newParcelle.surface.isNotBlank() && newParcelle.cepage.isNotBlank()) {
                             if (isEditingParcelle && parcelleToEdit != null) {
+                                val parcelle = parcelleToEdit!!
                                 // Mise à jour d'une parcelle existante
-                                val updatedParcelle = parcelleToEdit!!.copy(
+                                val updatedParcelle = parcelle.copy(
                                     name = newParcelle.name,
                                     surface = newParcelle.surface.toDoubleOrNull() ?: 0.0,
                                     cepage = newParcelle.cepage,
-                                    latitude = selectedLatitude,
-                                    longitude = selectedLongitude,
-                                    polygonPoints = if (modePolygoneActif) polygonPoints.map { it.point } else emptyList()
+                                    latitude = parcelle.latitude,
+                                    longitude = parcelle.longitude,
+                                    polygonPoints = parcelle.polygonPoints
                                 )
                                 viewModel.updateParcelle(updatedParcelle)
                             } else {
@@ -555,24 +559,35 @@ fun ParcellesBox(
                             showParcelleDialog = false
                             isEditingParcelle = false
                             parcelleToEdit = null
-                            // Réinitialiser le formulaire
-                            newParcelle = ParcelleInfo("", "", "", 0.0, 0.0)
-                            // Supprimer le marqueur de sélection
-                            selectedMarker?.let { mapView.overlays.remove(it) }
-                            selectedMarker = null
-                            // Réinitialiser le mode polygone et supprimer les points
+                            
+                            // Réinitialiser le formulaire et le mode polygone seulement après la validation
                             if (modePolygoneActif) {
-                                // Supprimer tous les marqueurs des points
+                                // Créer un nouveau polygone permanent avec les points actuels
+                                val permanentPolygon = Polygon().apply {
+                                    points = polygonPoints.map { it.point }
+                                    fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                    strokeColor = AndroidColor.BLUE
+                                    strokeWidth = 4f
+                                }
+                                mapView.overlays.add(permanentPolygon)
+                                
+                                // Supprimer uniquement les marqueurs des points de construction
                                 polygonMarkers.forEach { marker ->
                                     mapView.overlays.remove(marker)
                                 }
                                 polygonMarkers.clear()
                                 polygonPoints.clear()
+                                
                                 // Supprimer le polygone temporaire
                                 drawnPolygon?.let { mapView.overlays.remove(it) }
                                 drawnPolygon = null
+                                
                                 // Désactiver le mode polygone
                                 modePolygoneActif = false
+                            } else {
+                                // Supprimer le marqueur de sélection
+                                selectedMarker?.let { mapView.overlays.remove(it) }
+                                selectedMarker = null
                             }
                             mapView.invalidate()
                         }
@@ -865,6 +880,8 @@ fun ParcellesBox(
 
                     // Changer le mode à la fin
                     modePolygoneActif = !modePolygoneActif
+                    // Réinitialiser le compteur de points
+                    polygonPointsCount = 0
                 },
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -881,13 +898,9 @@ fun ParcellesBox(
             // Bouton d'ajout de parcelle (toujours visible)
             IconButton(
                 onClick = { 
-                    if (modePolygoneActif && polygonPointsCount >= 3) {
-                        // Calcul du centre du polygone
-                        val center = Polygon().apply { points = polygonPoints.map { it.point } }.bounds.centerWithDateLine
-                        selectedLatitude = center.latitude
-                        selectedLongitude = center.longitude
-                        showParcelleDialog = true
-                    } else if (!modePolygoneActif && selectedMarker != null) {
+                    if ((modePolygoneActif && polygonPointsCount >= 3) || (!modePolygoneActif && selectedMarker != null)) {
+                        // Réinitialiser le formulaire avant d'ouvrir le dialogue
+                        newParcelle = ParcelleInfo("", "", "", 0.0, 0.0)
                         showParcelleDialog = true
                     }
                 },
@@ -897,11 +910,16 @@ fun ParcellesBox(
                     .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small)
                     .alpha(
                         if (modePolygoneActif) {
-                            if (polygonPointsCount >= 3) 1f else 0.5f
+                            if (polygonPointsCount >= 3) 1f else 0.3f
                         } else {
-                            if (selectedMarker != null) 1f else 0.5f
+                            if (selectedMarker != null) 1f else 0.3f
                         }
-                    )
+                    ),
+                enabled = if (modePolygoneActif) {
+                    polygonPointsCount >= 3
+                } else {
+                    selectedMarker != null
+                }
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -952,6 +970,20 @@ fun ParcellesBox(
                                     )
                                     selectedLatitude = parcelle.latitude
                                     selectedLongitude = parcelle.longitude
+                                    
+                                    // Si la parcelle a un polygone, on ne l'affiche pas lors de la modification
+                                    if (parcelle.polygonPoints.isNotEmpty()) {
+                                        // Nettoyer les points et marqueurs existants
+                                        polygonMarkers.forEach { marker ->
+                                            mapView.overlays.remove(marker)
+                                        }
+                                        polygonMarkers.clear()
+                                        polygonPoints.clear()
+                                        drawnPolygon?.let { mapView.overlays.remove(it) }
+                                        drawnPolygon = null
+                                        mapView.invalidate()
+                                    }
+                                    
                                     isEditingParcelle = true
                                     showParcelleDialog = true
                                 },
