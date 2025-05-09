@@ -681,9 +681,14 @@ fun ParcellesBox(
                                                 }
                                                 
                                                 // Vérifier si on peut supprimer le premier point
-                                                if (closestPointIndex == 0 && !isPolygonClosed && polygonPoints.size > 1) {
-                                                    Log.d("MapEvents", "Impossible de supprimer le premier point - polygone non fermé et plus d'un point")
-                                                    return true
+                                                if (closestPointIndex == 0) {
+                                                    if (polygonPoints.size <= 2) {
+                                                        // Permettre la suppression du premier point s'il n'y a que 2 points ou moins
+                                                        Log.d("MapEvents", "Suppression du premier point autorisée - moins de 3 points")
+                                                    } else if (!isPolygonClosed) {
+                                                        Log.d("MapEvents", "Impossible de supprimer le premier point - polygone non fermé et plus de 2 points")
+                                                        return true
+                                                    }
                                                 }
 
                                                 Log.d("MapEvents", "Suppression du point $closestPointIndex")
