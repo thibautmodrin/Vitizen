@@ -370,26 +370,19 @@ fun ParcellesBox(
     var myLocationOverlay: MyLocationNewOverlay? by remember { mutableStateOf(null) }
     var parcelleMarkers by remember { mutableStateOf(listOf<Marker>()) }
     val parcelles by viewModel.parcelles.collectAsState()
-    
+
     // Modifiez les états pour le mode polygone
     var modePolygoneActif by remember { mutableStateOf(false) }
     var polygonPoints by remember { mutableStateOf(mutableListOf<PolygonPoint>()) }
-    var drawnPolygon: Polygon? by remember { mutableStateOf(null) }
+    var drawnPolyline: PolylineOverlay? by remember { mutableStateOf(null) }
     var polygonMarkers by remember { mutableStateOf(mutableListOf<Marker>()) }
-    
-    // Ajoutez un état pour le nombre de points
     var polygonPointsCount by remember { mutableStateOf(0) }
-
-    // Ajouter un état pour stocker les polygones des parcelles
-    var parcellePolygons by remember { mutableStateOf(mapOf<String, Polygon>()) }
-
-    // Ajouter l'état pour le texte d'aide
     var showHelpText by remember { mutableStateOf(false) }
+    var isPolygonClosed by remember { mutableStateOf(false) }
+    var drawnPolygon: Polygon? by remember { mutableStateOf(null) }
 
-    // Mettre à jour l'état du texte d'aide quand le mode polygone ou le nombre de points change
-    LaunchedEffect(modePolygoneActif, polygonPointsCount) {
-        showHelpText = modePolygoneActif && polygonPointsCount < 3
-    }
+    // Ajouter l'état pour stocker les polygones des parcelles
+    var parcellePolygons by remember { mutableStateOf(mapOf<String, Polygon>()) }
 
     // Fonction de suppression d'une parcelle
     fun deleteParcelle(parcelle: Parcelle) {
@@ -429,71 +422,62 @@ fun ParcellesBox(
         }
         
         // Forcer la mise à jour de la carte
-        mapView.invalidate()
-    }
+                mapView.invalidate()
+            }
 
-    // Mettez à jour le compteur quand les points changent
-    LaunchedEffect(polygonPoints) {
+    // Remplacer les LaunchedEffect existants par une meilleure gestion des états
+    LaunchedEffect(modePolygoneActif, polygonPoints) {
         polygonPointsCount = polygonPoints.size
-    }
+        showHelpText = modePolygoneActif && polygonPoints.size < 3
+        }
 
     LaunchedEffect(Unit) {
         hasLocationPermission = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }
 
-    // Effet pour mettre à jour la vue satellite
-    LaunchedEffect(isSatelliteView) {
+    LaunchedEffect(isSatelliteView, parcelles, isMapReady) {
         if (isMapReady) {
             try {
+                // Mise à jour de la vue satellite
                 mapView.setTileSource(if (isSatelliteView) TileSourceFactory.USGS_SAT else TileSourceFactory.MAPNIK)
-                mapView.invalidate()
-            } catch (e: Exception) {
-                Log.e("ParcellesBox", "Erreur lors du changement de vue", e)
-            }
-        }
-    }
-
-    // Effet pour mettre à jour les marqueurs et polygones des parcelles
-    LaunchedEffect(parcelles) {
-        if (isMapReady) {
-            // Supprimer les anciens marqueurs et polygones
+                
+                // Mise à jour des marqueurs et polygones
             parcelleMarkers.forEach { marker ->
                 mapView.overlays.remove(marker)
             }
             parcelleMarkers = emptyList()
 
-            // Supprimer tous les polygones existants
-            parcellePolygons.values.forEach { polygon ->
-                mapView.overlays.remove(polygon)
-            }
-            parcellePolygons = emptyMap()
+                parcellePolygons.values.forEach { polygon ->
+                    mapView.overlays.remove(polygon)
+                }
+                parcellePolygons = emptyMap()
 
-            // Ajouter les nouveaux marqueurs et polygones
-            parcelles.forEach { parcelle ->
-                if (parcelle.polygonPoints.isEmpty()) {
-                    // Ajouter le marqueur uniquement si pas de polygone
-                    val marker = Marker(mapView).apply {
+                parcelles.forEach { parcelle ->
+                    if (parcelle.polygonPoints.isEmpty()) {
+                        val marker = Marker(mapView).apply {
                     position = GeoPoint(parcelle.latitude, parcelle.longitude)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                        icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
+                            icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
                     title = parcelle.name
                     snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
                 }
-                    parcelleMarkers = parcelleMarkers + marker
+                        parcelleMarkers = parcelleMarkers + marker
                 mapView.overlays.add(marker)
-                } else {
-                    // Ajouter le polygone
-                    val polygon = Polygon().apply {
-                        points = parcelle.polygonPoints
-                        fillColor = AndroidColor.argb(60, 0, 0, 255)
-                        strokeColor = AndroidColor.BLUE
-                        strokeWidth = 4f
+                    } else {
+                        val polygon = Polygon().apply {
+                            points = parcelle.polygonPoints
+                            fillColor = AndroidColor.argb(60, 0, 0, 255)
+                            strokeColor = AndroidColor.BLUE
+                            strokeWidth = 4f
+                        }
+                        mapView.overlays.add(polygon)
+                        parcellePolygons = parcellePolygons + (parcelle.id to polygon)
                     }
-                    mapView.overlays.add(polygon)
-                    parcellePolygons = parcellePolygons + (parcelle.id to polygon)
-                }
             }
             mapView.invalidate()
+            } catch (e: Exception) {
+                Log.e("ParcellesBox", "Erreur lors de la mise à jour de la carte", e)
+            }
         }
     }
 
@@ -505,8 +489,8 @@ fun ParcellesBox(
         modePolygoneActif = false
         polygonPoints.clear()
         polygonMarkers.clear()
-        drawnPolygon?.let { mapView.overlays.remove(it) }
-        drawnPolygon = null
+        drawnPolyline?.let { mapView.overlays.remove(it) }
+        drawnPolyline = null
         mapView.invalidate()
         isEditingParcelle = false
         parcelleToEdit = null
@@ -587,8 +571,8 @@ fun ParcellesBox(
                             // Réinitialiser le formulaire et le mode polygone seulement après la validation
                             if (modePolygoneActif) {
                                 // Supprimer l'ancien polygone temporaire s'il existe
-                                drawnPolygon?.let { mapView.overlays.remove(it) }
-                                drawnPolygon = null
+                                drawnPolyline?.let { mapView.overlays.remove(it) }
+                                drawnPolyline = null
                                 
                                 // Supprimer uniquement les marqueurs des points de construction
                                 polygonMarkers.forEach { marker ->
@@ -659,43 +643,31 @@ fun ParcellesBox(
                                 if (hasLocationPermission) {
                                     myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(context), this).apply {
                                         enableMyLocation()
-                                        enableFollowLocation()
-                                        runOnFirstFix {
-                                            val myLocation = myLocation
-                                            if (myLocation != null) {
-                                                Handler(Looper.getMainLooper()).post {
-                                                    controller.animateTo(GeoPoint(myLocation.latitude, myLocation.longitude))
-                                                    controller.setZoom(15.0)
-                                                }
-                                            }
-                                        }
+                                        disableFollowLocation()
+                                        disableMyLocation()
                                     }
                                     overlays.add(myLocationOverlay!!)
                                 }
 
-                                // Ajout de l'overlay de sélection
+                                // Ajout de l'overlay de sélection en premier
                                 overlays.add(object : Overlay() {
-                                    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
-                                        val projection = mapView.projection
-                                        val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
-                                        
-                                        if (modePolygoneActif) {
-                                            // Vérifier si on clique sur un point existant
-                                            val pointIndex = polygonPoints.indexOfFirst { 
-                                                it.point.distanceToAsDouble(geoPoint) < 5 
-                                            }
-                                            if (pointIndex >= 0) {
-                                                // Suppression du point et de son marqueur
-                                                polygonPoints.removeAt(pointIndex)
-                                                polygonMarkers[pointIndex].let { marker ->
-                                                    mapView.overlays.remove(marker)
-                                                    polygonMarkers.removeAt(pointIndex)
-                                                }
-                                                polygonPointsCount = polygonPoints.size
-
-                                                // Mise à jour du polygone
-                                                drawnPolygon?.let { mapView.overlays.remove(it) }
-                                                if (polygonPoints.size >= 3) {
+                                    override fun onTouchEvent(event: MotionEvent, mapView: MapView): Boolean {
+                                        if (event.action == MotionEvent.ACTION_UP && modePolygoneActif && polygonPoints.size >= 3 && !isPolygonClosed) {
+                                            val projection = mapView.projection
+                                            val geoPoint = projection.fromPixels(event.x.toInt(), event.y.toInt())
+                                            
+                                            // Vérifier si on clique sur le premier point
+                                            val firstPoint = polygonPoints.firstOrNull()
+                                            if (firstPoint != null) {
+                                                val distance = firstPoint.point.distanceToAsDouble(geoPoint)
+                                                Log.d("MapEvents", "Vérification du touch event - Distance au premier point: $distance")
+                                                
+                                                if (distance < 100) {
+                                                    Log.d("MapEvents", "Touch event détecté sur le premier point")
+                                                    isPolygonClosed = true
+                                                    drawnPolyline?.let { mapView.overlays.remove(it) }
+                                                    drawnPolyline = null
+                                                    
                                                     drawnPolygon = Polygon().apply {
                                                         points = polygonPoints.map { it.point }
                                                         fillColor = AndroidColor.argb(60, 0, 0, 255)
@@ -703,145 +675,196 @@ fun ParcellesBox(
                                                         strokeWidth = 4f
                                                     }
                                                     mapView.overlays.add(drawnPolygon)
-                                                } else {
-                                                    drawnPolygon = null
+                                                    mapView.invalidate()
+                                                    return true
                                                 }
-                                                mapView.invalidate()
-                                            } else {
-                                                // Ajout d'un nouveau point
-                                                val newPoint = GeoPoint(geoPoint.latitude, geoPoint.longitude)
-                                                // Vérifier si le point correspond à une parcelle existante
-                                                val isParcelle = parcelles.any { parcelle ->
-                                                    val tolerance = 0.0001
-                                                    Math.abs(parcelle.latitude - newPoint.latitude) < tolerance &&
-                                                    Math.abs(parcelle.longitude - newPoint.longitude) < tolerance
-                                                }
+                                            }
+                                        }
+                                        return false
+                                    }
 
-                                                // Trouver l'index d'insertion optimal
-                                                val insertIndex = if (polygonPoints.size >= 2) {
-                                                    var minDistance = Double.MAX_VALUE
-                                                    var bestIndex = 0
+                                    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+                                        Log.d("MapEvents", "=== DÉBUT ÉVÉNEMENT SINGLE TAP ===")
+                                        Log.d("MapEvents", "Position du clic: x=${e.x}, y=${e.y}")
+                                        
+                                        val projection = mapView.projection
+                                        val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
+                                        Log.d("MapEvents", "Point géographique: lat=${geoPoint.latitude}, lon=${geoPoint.longitude}")
+                                        
+                                        if (modePolygoneActif) {
+                                            Log.d("MapEvents", "Mode polygone actif")
+                                            Log.d("MapEvents", "État actuel:")
+                                            Log.d("MapEvents", "- Nombre de points: ${polygonPoints.size}")
+                                            Log.d("MapEvents", "- Polygone fermé: $isPolygonClosed")
+                                            Log.d("MapEvents", "- Points existants:")
+                                            polygonPoints.forEachIndexed { index, point ->
+                                                Log.d("MapEvents", "  Point $index: lat=${point.point.latitude}, lon=${point.point.longitude}")
+                                            }
+                                            
+                                            // Vérifier si on clique sur un point existant
+                                            var minDistance = Double.MAX_VALUE
+                                            var closestPointIndex = -1
+                                            
+                                            polygonPoints.forEachIndexed { index, polygonPoint ->
+                                                val distance = polygonPoint.point.distanceToAsDouble(geoPoint)
+                                                Log.d("MapEvents", "Distance au point $index: $distance")
+                                                if (distance < minDistance) {
+                                                    minDistance = distance
+                                                    closestPointIndex = index
+                                                }
+                                            }
+                                            
+                                            Log.d("MapEvents", "Point le plus proche: index=$closestPointIndex, distance=$minDistance")
+                                            
+                                            if (minDistance < 100) {
+                                                Log.d("MapEvents", "Clic sur un point existant (index: $closestPointIndex)")
+                                                
+                                                if (closestPointIndex == 0 && polygonPoints.size >= 3 && !isPolygonClosed) {
+                                                    Log.d("MapEvents", "Tentative de fermeture du polygone")
+                                                    Log.d("MapEvents", "Conditions pour fermer le polygone:")
+                                                    Log.d("MapEvents", "- Nombre de points >= 3: ${polygonPoints.size >= 3}")
+                                                    Log.d("MapEvents", "- Polygone non fermé: ${!isPolygonClosed}")
+                                                    Log.d("MapEvents", "- Clic sur le premier point: ${closestPointIndex == 0}")
                                                     
-                                                    // Calculer la distance entre le nouveau point et chaque segment du polygone
-                                                    for (i in 0 until polygonPoints.size) {
-                                                        val currentPoint = polygonPoints[i].point
-                                                        val nextPoint = polygonPoints[(i + 1) % polygonPoints.size].point
-                                                        
-                                                        // Calculer la distance du point au segment
-                                                        val distance = distancePointToSegment(
-                                                            newPoint,
-                                                            currentPoint,
-                                                            nextPoint
-                                                        )
-                                                        
-                                                        if (distance < minDistance) {
-                                                            minDistance = distance
-                                                            bestIndex = (i + 1) % (polygonPoints.size + 1)
-                                                        }
+                                                    isPolygonClosed = true
+                                                    drawnPolyline?.let { mapView.overlays.remove(it) }
+                                                    drawnPolyline = null
+                                                    
+                                                    drawnPolygon = Polygon().apply {
+                                                        points = polygonPoints.map { it.point }
+                                                        fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                                        strokeColor = AndroidColor.BLUE
+                                                        strokeWidth = 4f
                                                     }
-                                                    bestIndex
-                                                } else {
-                                                    polygonPoints.size
+                                                    mapView.overlays.add(drawnPolygon)
+                                                    mapView.invalidate()
+                                                    
+                                                    Log.d("MapEvents", "Polygone fermé avec succès")
+                                                    Log.d("MapEvents", "Points du polygone final:")
+                                                    polygonPoints.forEachIndexed { index, point ->
+                                                        Log.d("MapEvents", "  Point $index: lat=${point.point.latitude}, lon=${point.point.longitude}")
+                                                    }
+                                                    return true
+                                                } else if (closestPointIndex > 0 && !isPolygonClosed) {
+                                                    Log.d("MapEvents", "Suppression du point $closestPointIndex")
+                                                    polygonPoints.removeAt(closestPointIndex)
+                                                    polygonMarkers[closestPointIndex].let { marker ->
+                                                        mapView.overlays.remove(marker)
+                                                        polygonMarkers.removeAt(closestPointIndex)
+                                                    }
+                                                    
+                                                    drawnPolyline?.let { mapView.overlays.remove(it) }
+                                                    if (polygonPoints.size >= 2) {
+                                                        drawnPolyline = PolylineOverlay(polygonPoints.map { it.point }).apply {
+                                                            strokeColor = AndroidColor.BLUE
+                                                            strokeWidth = 4f
+                                                        }
+                                                        mapView.overlays.add(drawnPolyline)
+                                                    }
+                                                    mapView.invalidate()
+                                                    Log.d("MapEvents", "Point supprimé. Nouveau nombre de points: ${polygonPoints.size}")
+                                                    return true
                                                 }
-
-                                                // Insérer le point à la position optimale
-                                                polygonPoints.add(insertIndex, PolygonPoint(newPoint, isParcelle))
-                                                polygonPointsCount = polygonPoints.size
+                                            } else if (!isPolygonClosed) {
+                                                Log.d("MapEvents", "Ajout d'un nouveau point")
+                                                val newPoint = GeoPoint(geoPoint.latitude, geoPoint.longitude)
+                                                polygonPoints.add(PolygonPoint(newPoint, false))
                                                 
                                                 val newMarker = Marker(mapView).apply {
                                                     position = newPoint
                                                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                                                     icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
                                                     infoWindow = null
-                                                    title = "Point ${insertIndex + 1}"
-                                                    setOnMarkerClickListener { clickedMarker, mapView ->
-                                                        if (modePolygoneActif) {
-                                                            val index = polygonMarkers.indexOf(clickedMarker)
-                                                            if (index >= 0) {
-                                                                // Suppression du point et de son marqueur
-                                                                polygonPoints.removeAt(index)
-                                                                polygonMarkers[index].let { m ->
-                                                                    mapView.overlays.remove(m)
-                                                                    polygonMarkers.removeAt(index)
-                                                                }
-                                                                polygonPointsCount = polygonPoints.size
-
-                                                                // Mise à jour des numéros des points restants
-                                                                polygonMarkers.forEachIndexed { i, marker ->
-                                                                    marker.title = "Point ${i + 1}"
-                                                                }
-
-                                                                // Mise à jour du polygone
-                                                                drawnPolygon?.let { mapView.overlays.remove(it) }
-                                                                if (polygonPoints.size >= 3) {
-                                                                    drawnPolygon = Polygon().apply {
-                                                                        points = polygonPoints.map { it.point }
-                                                                        fillColor = AndroidColor.argb(60, 0, 0, 255)
-                                                                        strokeColor = AndroidColor.BLUE
-                                                                        strokeWidth = 4f
-                                                                    }
-                                                                    mapView.overlays.add(drawnPolygon)
-                                                                } else {
-                                                                    drawnPolygon = null
-                                                                }
-                                                                mapView.invalidate()
-                                                            }
-                                                            true
-                                                        } else {
-                                                            false
-                                                        }
-                                                    }
+                                                    title = "Point ${polygonPoints.size}"
                                                 }
-                                                polygonMarkers.add(insertIndex, newMarker)
+                                                polygonMarkers.add(newMarker)
                                                 mapView.overlays.add(newMarker)
 
-                                                // Mise à jour des numéros des points
-                                                polygonMarkers.forEachIndexed { i, marker ->
-                                                    marker.title = "Point ${i + 1}"
+                                                drawnPolyline?.let { mapView.overlays.remove(it) }
+                                                if (polygonPoints.size >= 2) {
+                                                    drawnPolyline = PolylineOverlay(polygonPoints.map { it.point }).apply {
+                                                        strokeColor = AndroidColor.BLUE
+                                                        strokeWidth = 4f
+                                                    }
+                                                    mapView.overlays.add(drawnPolyline)
                                                 }
+                                                mapView.invalidate()
+                                                Log.d("MapEvents", "Nouveau point ajouté:")
+                                                Log.d("MapEvents", "- Position: lat=${newPoint.latitude}, lon=${newPoint.longitude}")
+                                                Log.d("MapEvents", "- Nombre total de points: ${polygonPoints.size}")
+                                                return true
                                             }
-
-                                            // Mise à jour du polygone dessiné
-                                            drawnPolygon?.let { mapView.overlays.remove(it) }
-                                            if (polygonPoints.size >= 3) {
-                                                drawnPolygon = Polygon().apply {
-                                                    points = polygonPoints.map { it.point }
-                                                    fillColor = AndroidColor.argb(60, 0, 0, 255)
-                                                    strokeColor = AndroidColor.BLUE
-                                                    strokeWidth = 4f
-                                                }
-                                                mapView.overlays.add(drawnPolygon)
-                                            }
-                                            mapView.invalidate()
                                         } else {
-                                            // Mode point unique
+                                            Log.d("MapEvents", "Mode point unique")
                                             selectedLatitude = geoPoint.latitude
                                             selectedLongitude = geoPoint.longitude
 
                                             selectedMarker?.let { mapView.overlays.remove(it) }
-                                        selectedMarker = Marker(mapView).apply {
-                                            position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
-                                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                            icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)
-                                            title = "Position sélectionnée"
-                                            snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
-                                        }
+                                            selectedMarker = Marker(mapView).apply {
+                                                position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
+                                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                                icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)
+                                                title = "Position sélectionnée"
+                                                snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
+                                            }
                                             mapView.overlays.add(selectedMarker!!)
-                                        mapView.invalidate()
+                                            mapView.invalidate()
+                                            Log.d("MapEvents", "Point unique ajouté: lat=${geoPoint.latitude}, lon=${geoPoint.longitude}")
+                                            return true
                                         }
                                         
-                                        return true
+                                        Log.d("MapEvents", "=== FIN ÉVÉNEMENT SINGLE TAP ===")
+                                        return false
+                                    }
+
+                                    override fun onScroll(event: MotionEvent?, event2: MotionEvent?, distanceX: Float, distanceY: Float, mapView: MapView?): Boolean {
+                                        Log.d("MapEvents", "Scroll: dx=$distanceX, dy=$distanceY")
+                                        return false
                                     }
 
                                     override fun onDoubleTap(e: MotionEvent, mapView: MapView): Boolean {
-                                        if (selectedMarker != null) {
-                                            // Réinitialiser le formulaire uniquement si on n'est pas en train de modifier une parcelle existante
-                                            if (!isEditingParcelle) {
-                                                newParcelle = ParcelleInfo("", "", "", 0.0, 0.0)
+                                        Log.d("MapEvents", "Double tap: x=${e.x}, y=${e.y}")
+                                        return false
+                                    }
+
+                                    override fun onLongPress(e: MotionEvent, mapView: MapView): Boolean {
+                                        Log.d("MapEvents", "Long press: x=${e.x}, y=${e.y}")
+                                        return false
+                                    }
+                                })
+
+                                // Ajout d'un overlay pour gérer le recentrage
+                                overlays.add(object : Overlay() {
+                                    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+                                        if (modePolygoneActif && polygonPoints.size >= 3 && !isPolygonClosed) {
+                                            val projection = mapView.projection
+                                            val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
+                                            
+                                            // Vérifier si on clique sur le premier point
+                                            val firstPoint = polygonPoints.firstOrNull()
+                                            if (firstPoint != null) {
+                                                val distance = firstPoint.point.distanceToAsDouble(geoPoint)
+                                                Log.d("MapEvents", "Vérification du recentrage - Distance au premier point: $distance")
+                                                
+                                                if (distance < 100) {
+                                                    Log.d("MapEvents", "Recentrage détecté sur le premier point")
+                                                    isPolygonClosed = true
+                                                    drawnPolyline?.let { mapView.overlays.remove(it) }
+                                                    drawnPolyline = null
+                                                    
+                                                    drawnPolygon = Polygon().apply {
+                                                        points = polygonPoints.map { it.point }
+                                                        fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                                        strokeColor = AndroidColor.BLUE
+                                                        strokeWidth = 4f
+                                                    }
+                                                    mapView.overlays.add(drawnPolygon)
+                                                    mapView.invalidate()
+                                                    return true
+                                                }
                                             }
-                                            showParcelleDialog = true
                                         }
-                                        return true
+                                        return false
                                     }
                                 })
 
@@ -889,54 +912,31 @@ fun ParcellesBox(
             // Bouton de basculement mode polygone
             IconButton(
                 onClick = { 
-                    // D'abord, supprimer le point unique si on active le mode polygone
                     if (!modePolygoneActif) {
+                        // Nettoyer le marqueur unique si on passe en mode polygone
                         selectedMarker?.let { marker ->
                             mapView.overlays.remove(marker)
                             selectedMarker = null
                             mapView.invalidate()
                         }
-                    }
-
-                    if (modePolygoneActif) {
-                        // Supprimer le dernier point s'il n'est pas une parcelle
-                        val lastPoint = polygonPoints.lastOrNull()
-                        if (lastPoint != null && !lastPoint.isParcelle) {
-                            polygonPoints.removeLast()
-                            polygonMarkers.lastOrNull()?.let { marker ->
-                                mapView.overlays.remove(marker)
-                                polygonMarkers.removeLast()
-                            }
-                            // Mettre à jour le polygone
-                            drawnPolygon?.let { mapView.overlays.remove(it) }
-                            if (polygonPoints.size >= 3) {
-                                drawnPolygon = Polygon().apply {
-                                    points = polygonPoints.map { it.point }
-                                    fillColor = AndroidColor.argb(60, 0, 0, 255)
-                                    strokeColor = AndroidColor.BLUE
-                                    strokeWidth = 4f
-                                }
-                                mapView.overlays.add(drawnPolygon)
-                            } else {
-                                drawnPolygon = null
-                            }
-                            mapView.invalidate()
-                        }
-
-                        // Nettoyage final
+                    } else {
+                        // Nettoyer tous les éléments du mode polygone
                         polygonMarkers.forEach { marker ->
                             mapView.overlays.remove(marker)
                         }
                         polygonMarkers.clear()
                         polygonPoints.clear()
+                        drawnPolyline?.let { mapView.overlays.remove(it) }
+                        drawnPolyline = null
                         drawnPolygon?.let { mapView.overlays.remove(it) }
                         drawnPolygon = null
+                        isPolygonClosed = false
+                        polygonPointsCount = 0
+                        showHelpText = false
                     }
 
-                    // Changer le mode à la fin
                     modePolygoneActif = !modePolygoneActif
-                    // Réinitialiser le compteur de points
-                    polygonPointsCount = 0
+                    mapView.invalidate()
                 },
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -950,11 +950,11 @@ fun ParcellesBox(
                 )
             }
 
-            // Bouton d'ajout de parcelle (toujours visible)
+            // Modifiez la condition du bouton d'ajout pour utiliser isPolygonClosed
             IconButton(
                 onClick = { 
-                    if ((modePolygoneActif && polygonPointsCount >= 3) || (!modePolygoneActif && selectedMarker != null)) {
-                        // Réinitialiser le formulaire avant d'ouvrir le dialogue
+                    if ((modePolygoneActif && isPolygonClosed && polygonPoints.size >= 3) || 
+                        (!modePolygoneActif && selectedMarker != null)) {
                         newParcelle = ParcelleInfo("", "", "", 0.0, 0.0)
                         showParcelleDialog = true
                     }
@@ -965,13 +965,13 @@ fun ParcellesBox(
                     .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.small)
                     .alpha(
                         if (modePolygoneActif) {
-                            if (polygonPointsCount >= 3) 1f else 0.3f
+                            if (isPolygonClosed && polygonPoints.size >= 3) 1f else 0.3f
                         } else {
                             if (selectedMarker != null) 1f else 0.3f
                         }
                     ),
                 enabled = if (modePolygoneActif) {
-                    polygonPointsCount >= 3
+                    isPolygonClosed && polygonPoints.size >= 3
                 } else {
                     selectedMarker != null
                 }
@@ -979,7 +979,7 @@ fun ParcellesBox(
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = if (modePolygoneActif) 
-                        "Ajouter une parcelle (${polygonPointsCount}/3 points)" 
+                        "Ajouter une parcelle (${polygonPoints.size} points)" 
                     else 
                         "Ajouter une parcelle"
                 )
@@ -1053,8 +1053,8 @@ fun ParcellesBox(
                                         }
                                         polygonMarkers.clear()
                                         polygonPoints.clear()
-                                        drawnPolygon?.let { mapView.overlays.remove(it) }
-                                        drawnPolygon = null
+                                        drawnPolyline?.let { mapView.overlays.remove(it) }
+                                        drawnPolyline = null
                                         mapView.invalidate()
                                     }
                                     
@@ -1120,6 +1120,7 @@ fun ParcellesBox(
         }
     }
 }
+
 
 @Composable
 fun InformationItem(
@@ -1440,5 +1441,37 @@ private fun distancePointToSegment(point: GeoPoint, segmentStart: GeoPoint, segm
     val dy = y - yy
 
     return Math.sqrt(dx * dx + dy * dy)
+}
+
+// Ajoutez cette classe après les imports
+class PolylineOverlay(points: List<GeoPoint>) : Overlay() {
+    private val points = points.toMutableList()
+    var strokeColor = AndroidColor.BLUE
+    var strokeWidth = 4f
+
+    override fun draw(canvas: android.graphics.Canvas?, mapView: MapView?, shadow: Boolean) {
+        if (canvas == null || mapView == null || shadow || points.size < 2) return
+
+        val paint = android.graphics.Paint().apply {
+            color = strokeColor
+            strokeWidth = this@PolylineOverlay.strokeWidth
+            style = android.graphics.Paint.Style.STROKE
+            isAntiAlias = true
+        }
+
+        val path = android.graphics.Path()
+        var first = true
+        points.forEach { point ->
+            val screenPoint = mapView.projection.toPixels(point, null)
+            if (first) {
+                path.moveTo(screenPoint.x.toFloat(), screenPoint.y.toFloat())
+                first = false
+            } else {
+                path.lineTo(screenPoint.x.toFloat(), screenPoint.y.toFloat())
+            }
+        }
+
+        canvas.drawPath(path, paint)
+    }
 } 
 
