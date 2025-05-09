@@ -386,44 +386,35 @@ fun ParcellesBox(
 
     // Fonction de suppression d'une parcelle
     fun deleteParcelle(parcelle: Parcelle) {
-        // Supprimer le polygone associé s'il existe
+        Log.d("MapEvents", "Suppression de la parcelle: ${parcelle.name}")
+        
+        // Supprimer le polygone de la map des polygones
         parcellePolygons[parcelle.id]?.let { polygon ->
+            Log.d("MapEvents", "Suppression du polygone de la parcelle de la map")
             mapView.overlays.remove(polygon)
             parcellePolygons = parcellePolygons - parcelle.id
         }
         
-        // Supprimer les marqueurs associés à la parcelle
-        parcelleMarkers.forEach { marker ->
-            if (abs(marker.position.latitude - parcelle.latitude) < 0.0001 &&
-                abs(marker.position.longitude - parcelle.longitude) < 0.0001) {
-                // Fermer l'info-bulle si elle est ouverte
-                if (marker.isInfoWindowShown) {
-                    marker.closeInfoWindow()
-                }
-                mapView.overlays.remove(marker)
+        // Supprimer uniquement le marqueur associé à cette parcelle
+        parcelleMarkers.find { marker ->
+            abs(marker.position.latitude - parcelle.latitude) < 0.0001 &&
+            abs(marker.position.longitude - parcelle.longitude) < 0.0001
+        }?.let { marker ->
+            Log.d("MapEvents", "Suppression du marqueur de la parcelle")
+            if (marker.isInfoWindowShown) {
+                marker.closeInfoWindow()
             }
-        }
-        
-        // Mettre à jour la liste des marqueurs
-        parcelleMarkers = parcelleMarkers.filter { marker ->
-            !(abs(marker.position.latitude - parcelle.latitude) < 0.0001 &&
-              abs(marker.position.longitude - parcelle.longitude) < 0.0001)
+            mapView.overlays.remove(marker)
+            parcelleMarkers = parcelleMarkers.filter { it != marker }
         }
         
         // Supprimer la parcelle de la base de données
         viewModel.deleteParcelle(parcelle)
         
-        // Nettoyer tous les polygones liés à cette parcelle
-        mapView.overlays.removeAll { overlay ->
-            overlay is Polygon && overlay.points.any { point ->
-                abs(point.latitude - parcelle.latitude) < 0.0001 &&
-                abs(point.longitude - parcelle.longitude) < 0.0001
-            }
-        }
-        
         // Forcer la mise à jour de la carte
-                mapView.invalidate()
-            }
+        mapView.invalidate()
+        Log.d("MapEvents", "Suppression de la parcelle terminée")
+    }
 
     // Remplacer les LaunchedEffect existants par une meilleure gestion des états
     LaunchedEffect(modePolygoneActif, polygonPoints) {
@@ -570,9 +561,9 @@ fun ParcellesBox(
                             
                             // Réinitialiser le formulaire et le mode polygone seulement après la validation
                             if (modePolygoneActif) {
-                                // Supprimer l'ancien polygone temporaire s'il existe
-                                drawnPolyline?.let { mapView.overlays.remove(it) }
-                                drawnPolyline = null
+                                // Supprimer le polygone temporaire
+                                drawnPolygon?.let { mapView.overlays.remove(it) }
+                                drawnPolygon = null
                                 
                                 // Supprimer uniquement les marqueurs des points de construction
                                 polygonMarkers.forEach { marker ->
@@ -583,6 +574,7 @@ fun ParcellesBox(
                                 
                                 // Désactiver le mode polygone
                                 modePolygoneActif = false
+                                isPolygonClosed = false
                             } else {
                                 // Changer l'icône du marqueur en gris après validation
                                 selectedMarker?.let { marker ->
@@ -772,7 +764,7 @@ fun ParcellesBox(
                                             
                                             Log.d("MapEvents", "Point le plus proche: index=$closestPointIndex, distance=$minDistance")
                                             
-                                            if (minDistance < 100) {
+                                            if (minDistance < 10) {
                                                 // Si on clique sur un point existant, on ne fait rien ici
                                                 // La suppression est gérée dans onTouchEvent
                                                 return true
