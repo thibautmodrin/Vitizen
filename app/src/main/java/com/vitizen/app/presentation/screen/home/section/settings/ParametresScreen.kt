@@ -52,6 +52,7 @@ import kotlin.math.abs
 import java.util.*
 import androidx.compose.foundation.layout.Arrangement
 import com.vitizen.app.R
+import org.osmdroid.api.IGeoPoint
 
 data class TabItem(
     val title: String,
@@ -412,9 +413,9 @@ fun ParcellesBox(
         viewModel.deleteParcelle(parcelle)
         
         // Forcer la mise à jour de la carte
-        mapView.invalidate()
+                mapView.invalidate()
         Log.d("MapEvents", "Suppression de la parcelle terminée")
-    }
+            }
 
     // Remplacer les LaunchedEffect existants par une meilleure gestion des états
     LaunchedEffect(modePolygoneActif, polygonPoints) {
@@ -794,21 +795,32 @@ fun ParcellesBox(
                                                     mapView.overlays.add(newMarker)
                                                 } else if (isPolygonClosed) {
                                                     // Mode insertion uniquement si le polygone est fermé
-                                                    Log.d("MapEvents", "Mode insertion - polygone fermé")
-                                                    var minDistance = Double.MAX_VALUE
+                                                    Log.d("MapEvents", "=== MODE INSERTION POLYGONE FERMÉ ===")
+                                                    Log.d("MapEvents", "Nombre de points actuels: ${polygonPoints.size}")
+                                                    var minSegmentDistance = Double.MAX_VALUE
                                                     var insertIndex = -1
                                                     
                                                     for (i in 0 until polygonPoints.size) {
                                                         val currentPoint = polygonPoints[i].point
                                                         val nextPoint = polygonPoints[(i + 1) % polygonPoints.size].point
                                                         
-                                                        val distance = distancePointToSegment(newPoint, currentPoint, nextPoint)
-                                                        Log.d("MapEvents", "Distance au segment $i: $distance")
+                                                        Log.d("MapEvents", "Analyse du segment $i")
+                                                        val distanceToSegment = distancePointToSegment(newPoint, currentPoint, nextPoint)
+                                                        Log.d("MapEvents", "Distance au segment $i: $distanceToSegment")
                                                         
-                                                        if (distance < minDistance) {
-                                                            minDistance = distance
+                                                        if (distanceToSegment < minSegmentDistance) {
+                                                            minSegmentDistance = distanceToSegment
                                                             insertIndex = i + 1
+                                                            Log.d("MapEvents", "Nouveau segment le plus proche trouvé: $i (distance: $distanceToSegment)")
                                                         }
+                                                    }
+                                                    
+                                                    Log.d("MapEvents", "Distance minimale trouvée: $minSegmentDistance")
+                                                    Log.d("MapEvents", "Index d'insertion choisi: $insertIndex")
+                                                    
+                                                    if (minSegmentDistance < 0.0001) {
+                                                        Log.d("MapEvents", "Point trop proche d'un segment existant, insertion annulée")
+                                                        return true
                                                     }
                                                     
                                                     Log.d("MapEvents", "Insertion du point à l'index $insertIndex")
@@ -949,6 +961,77 @@ fun ParcellesBox(
                                             mapView.invalidate()
                                         }
                                         return false
+                                    }
+                                })
+
+                                // Ajout du GestureDetector
+                                val gestureDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+                                    override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                                        Log.d("MapEvents", "=== GESTURE DETECTOR - CLIC DÉTECTÉ ===")
+                                        if (modePolygoneActif && isPolygonClosed) {
+                                            val projection = mapView.projection
+                                            val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
+                                            Log.d("MapEvents", "Point géographique (GestureDetector): lat=${geoPoint.latitude}, lon=${geoPoint.longitude}")
+                                            
+                                            // Vérifier si le point est à l'intérieur du polygone
+                                            if (isPointInPolygon(geoPoint, polygonPoints.map { it.point })) {
+                                                Log.d("MapEvents", "Point à l'intérieur du polygone - insertion")
+                                                val newPoint = GeoPoint(geoPoint.latitude, geoPoint.longitude)
+                                                
+                                                // Trouver le segment le plus proche
+                                                var minSegmentDistance = Double.MAX_VALUE
+                                                var insertIndex = -1
+                                                
+                                                for (i in 0 until polygonPoints.size) {
+                                                    val currentPoint = polygonPoints[i].point
+                                                    val nextPoint = polygonPoints[(i + 1) % polygonPoints.size].point
+                                                    
+                                                    val distanceToSegment = distancePointToSegment(newPoint, currentPoint, nextPoint)
+                                                    if (distanceToSegment < minSegmentDistance) {
+                                                        minSegmentDistance = distanceToSegment
+                                                        insertIndex = i + 1
+                                                    }
+                                                }
+                                                
+                                                if (minSegmentDistance < 0.0001) {
+                                                    Log.d("MapEvents", "Point trop proche d'un segment existant")
+                                                    return true
+                                                }
+                                                
+                                                // Insérer le nouveau point
+                                                polygonPoints.add(insertIndex, PolygonPoint(newPoint, false))
+                                                
+                                                val newMarker = Marker(mapView).apply {
+                                                    position = newPoint
+                                                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                                                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                                    infoWindow = null
+                                                    title = "Point ${insertIndex + 1}"
+                                                }
+                                                polygonMarkers.add(insertIndex, newMarker)
+                                                mapView.overlays.add(newMarker)
+                                                
+                                                // Mettre à jour le polygone
+                                                drawnPolygon?.let { mapView.overlays.remove(it) }
+                                                drawnPolygon = Polygon().apply {
+                                                    points = polygonPoints.map { it.point }
+                                                    fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                                    strokeColor = AndroidColor.BLUE
+                                                    strokeWidth = 4f
+                                                }
+                                                mapView.overlays.add(drawnPolygon)
+                                                mapView.invalidate()
+                                                return true
+                                            }
+                                        }
+                                        return false
+                                    }
+                                })
+
+                                // Ajout de l'overlay pour le GestureDetector
+                                overlays.add(object : Overlay() {
+                                    override fun onTouchEvent(event: MotionEvent, mapView: MapView): Boolean {
+                                        return gestureDetector.onTouchEvent(event)
                                     }
                                 })
 
@@ -1218,8 +1301,75 @@ fun ParcellesBox(
             }
         }
     }
-}
 
+    // Déplacer les fonctions à l'intérieur de ParcellesBox
+    fun setupMapOverlays() {
+        Log.d("MapEvents", "=== CONFIGURATION DES OVERLAYS ===")
+        Log.d("MapEvents", "Nombre d'overlays avant ajout: ${mapView.overlays.size}")
+        
+        // Overlay de sélection
+        val selectionOverlay = object : Overlay() {
+            override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+                Log.d("MapEvents", "=== OVERLAY SÉLECTION - CLIC DÉTECTÉ ===")
+                val projection = mapView.projection
+                val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
+                Log.d("MapEvents", "Position du clic: x=${e.x}, y=${e.y}")
+                Log.d("MapEvents", "Point géographique: lat=${geoPoint.latitude}, lon=${geoPoint.longitude}")
+                return false
+            }
+        }
+        mapView.overlays.add(selectionOverlay)
+        Log.d("MapEvents", "Overlay de sélection ajouté")
+        
+        // Overlay de recentrage
+        val recentrageOverlay = object : Overlay() {
+            override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+                Log.d("MapEvents", "=== OVERLAY RECENTRAGE - CLIC DÉTECTÉ ===")
+                return false
+            }
+        }
+        mapView.overlays.add(recentrageOverlay)
+        Log.d("MapEvents", "Overlay de recentrage ajouté")
+        
+        // Overlay de gestion du zoom
+        val zoomOverlay = object : Overlay() {
+            override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+                Log.d("MapEvents", "=== OVERLAY ZOOM - CLIC DÉTECTÉ ===")
+                return false
+            }
+        }
+        mapView.overlays.add(zoomOverlay)
+        Log.d("MapEvents", "Overlay de zoom ajouté")
+        
+        // Overlay de localisation
+        myLocationOverlay?.let { overlay ->
+            mapView.overlays.add(overlay)
+            Log.d("MapEvents", "Overlay de localisation ajouté")
+        }
+        
+        Log.d("MapEvents", "Nombre d'overlays après ajout: ${mapView.overlays.size}")
+        Log.d("MapEvents", "Ordre des overlays (du dernier au premier):")
+        mapView.overlays.forEachIndexed { index, overlay ->
+            Log.d("MapEvents", "Overlay $index: ${overlay.javaClass.simpleName}")
+        }
+        Log.d("MapEvents", "=== FIN CONFIGURATION DES OVERLAYS ===")
+    }
+
+    fun createPolygon(points: List<GeoPoint>): Polygon {
+        Log.d("MapEvents", "=== CRÉATION DU POLYGONE ===")
+        val polygon = Polygon().apply {
+            this.points = points
+            fillColor = AndroidColor.argb(60, 0, 0, 255)
+            strokeColor = AndroidColor.BLUE
+            strokeWidth = 4f
+        }
+        mapView.overlays.add(polygon)
+        Log.d("MapEvents", "Polygone ajouté aux overlays")
+        Log.d("MapEvents", "Nombre total d'overlays: ${mapView.overlays.size}")
+        Log.d("MapEvents", "=== FIN CRÉATION DU POLYGONE ===")
+        return polygon
+    }
+}
 
 @Composable
 fun InformationItem(
@@ -1498,10 +1648,15 @@ fun rememberMapViewWithLifecycle(lifecycleOwner: LifecycleOwner): MapView {
     }
 
     return mapView
-}
+} 
 
 // Ajoutez cette fonction utilitaire pour calculer la distance d'un point à un segment
 private fun distancePointToSegment(point: GeoPoint, segmentStart: GeoPoint, segmentEnd: GeoPoint): Double {
+    Log.d("MapEvents", "=== CALCUL DISTANCE POINT-SEGMENT ===")
+    Log.d("MapEvents", "Point cliqué: lat=${point.latitude}, lon=${point.longitude}")
+    Log.d("MapEvents", "Début segment: lat=${segmentStart.latitude}, lon=${segmentStart.longitude}")
+    Log.d("MapEvents", "Fin segment: lat=${segmentEnd.latitude}, lon=${segmentEnd.longitude}")
+    
     val x = point.latitude
     val y = point.longitude
     val x1 = segmentStart.latitude
@@ -1520,6 +1675,7 @@ private fun distancePointToSegment(point: GeoPoint, segmentStart: GeoPoint, segm
 
     if (lenSq != 0.0) {
         param = dot / lenSq
+        Log.d("MapEvents", "Paramètre de projection: $param")
     }
 
     var xx: Double
@@ -1528,18 +1684,23 @@ private fun distancePointToSegment(point: GeoPoint, segmentStart: GeoPoint, segm
     if (param < 0) {
         xx = x1
         yy = y1
+        Log.d("MapEvents", "Point projeté sur début du segment")
     } else if (param > 1) {
         xx = x2
         yy = y2
+        Log.d("MapEvents", "Point projeté sur fin du segment")
     } else {
         xx = x1 + param * C
         yy = y1 + param * D
+        Log.d("MapEvents", "Point projeté sur le segment")
     }
 
     val dx = x - xx
     val dy = y - yy
-
-    return Math.sqrt(dx * dx + dy * dy)
+    val distance = Math.sqrt(dx * dx + dy * dy)
+    Log.d("MapEvents", "Distance calculée: $distance")
+    Log.d("MapEvents", "=== FIN CALCUL DISTANCE ===")
+    return distance
 }
 
 // Ajoutez cette classe après les imports
@@ -1572,5 +1733,23 @@ class PolylineOverlay(points: List<GeoPoint>) : Overlay() {
 
         canvas.drawPath(path, paint)
     }
+}
+
+// Modifier la fonction isPointInPolygon pour accepter IGeoPoint
+fun isPointInPolygon(point: IGeoPoint, polygon: List<IGeoPoint>): Boolean {
+    var inside = false
+    var j = polygon.size - 1
+    
+    for (i in polygon.indices) {
+        if ((polygon[i].longitude > point.longitude) != (polygon[j].longitude > point.longitude) &&
+            (point.latitude < (polygon[j].latitude - polygon[i].latitude) * 
+            (point.longitude - polygon[i].longitude) / 
+            (polygon[j].longitude - polygon[i].longitude) + polygon[i].latitude)) {
+            inside = !inside
+        }
+        j = i
+    }
+    
+    return inside
 } 
 
