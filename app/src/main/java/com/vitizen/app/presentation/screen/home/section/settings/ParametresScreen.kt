@@ -53,6 +53,15 @@ import java.util.*
 import androidx.compose.foundation.layout.Arrangement
 import com.vitizen.app.R
 import org.osmdroid.api.IGeoPoint
+import android.content.Context
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 
 data class TabItem(
     val title: String,
@@ -1735,16 +1744,19 @@ class PolylineOverlay(points: List<GeoPoint>) : Overlay() {
     }
 }
 
-// Modifier la fonction isPointInPolygon pour accepter IGeoPoint
+// Modifier la fonction isPointInPolygon pour accepter IGeoPoint et le convertir en GeoPoint
 fun isPointInPolygon(point: IGeoPoint, polygon: List<IGeoPoint>): Boolean {
-    var inside = false
-    var j = polygon.size - 1
+    val geoPoint = GeoPoint(point.latitude, point.longitude)
+    val geoPolygon = polygon.map { GeoPoint(it.latitude, it.longitude) }
     
-    for (i in polygon.indices) {
-        if ((polygon[i].longitude > point.longitude) != (polygon[j].longitude > point.longitude) &&
-            (point.latitude < (polygon[j].latitude - polygon[i].latitude) * 
-            (point.longitude - polygon[i].longitude) / 
-            (polygon[j].longitude - polygon[i].longitude) + polygon[i].latitude)) {
+    var inside = false
+    var j = geoPolygon.size - 1
+    
+    for (i in geoPolygon.indices) {
+        if ((geoPolygon[i].longitude > geoPoint.longitude) != (geoPolygon[j].longitude > geoPoint.longitude) &&
+            (geoPoint.latitude < (geoPolygon[j].latitude - geoPolygon[i].latitude) * 
+            (geoPoint.longitude - geoPolygon[i].longitude) / 
+            (geoPolygon[j].longitude - geoPolygon[i].longitude) + geoPolygon[i].latitude)) {
             inside = !inside
         }
         j = i
@@ -1752,4 +1764,577 @@ fun isPointInPolygon(point: IGeoPoint, polygon: List<IGeoPoint>): Boolean {
     
     return inside
 } 
+
+// Classe pour gérer les événements de la carte
+class MapEventHandler(
+    private val context: Context,
+    private val mapView: MapView,
+    private val onPointSelected: (GeoPoint) -> Unit,
+    private val onPolygonPointAdded: (GeoPoint) -> Unit,
+    private val onPolygonPointRemoved: (Int) -> Unit,
+    private val onPolygonClosed: () -> Unit
+) {
+    private var modePolygoneActif = false
+    private var isPolygonClosed = false
+    private var polygonPoints = mutableListOf<PolygonPoint>()
+    private var polygonMarkers = mutableListOf<Marker>()
+    private var drawnPolyline: PolylineOverlay? = null
+    private var drawnPolygon: Polygon? = null
+
+    fun handleSingleTap(e: MotionEvent): Boolean {
+        Log.d("MapEvents", "=== DÉBUT ÉVÉNEMENT SINGLE TAP ===")
+        val projection = mapView.projection
+        val iGeoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
+        val geoPoint = GeoPoint(iGeoPoint.latitude, iGeoPoint.longitude)
+        
+        if (modePolygoneActif) {
+            return handlePolygonModeTap(geoPoint)
+        } else {
+            return handleSinglePointModeTap(geoPoint)
+        }
+    }
+
+    private fun handlePolygonModeTap(geoPoint: GeoPoint): Boolean {
+        if (isPolygonClosed) {
+            return handleClosedPolygonTap(geoPoint)
+        } else {
+            return handleOpenPolygonTap(geoPoint)
+        }
+    }
+
+    private fun handleClosedPolygonTap(geoPoint: GeoPoint): Boolean {
+        if (isPointInPolygon(geoPoint, polygonPoints.map { it.point })) {
+            insertPointInPolygon(geoPoint)
+            return true
+        }
+        return false
+    }
+
+    private fun handleOpenPolygonTap(geoPoint: GeoPoint): Boolean {
+        val closestPointIndex = findClosestPointIndex(geoPoint)
+        if (closestPointIndex != -1 && polygonPoints[closestPointIndex].point.distanceToAsDouble(geoPoint) < 10) {
+            return handleExistingPointTap(closestPointIndex)
+        } else {
+            addNewPoint(geoPoint)
+            return true
+        }
+    }
+
+    private fun handleSinglePointModeTap(geoPoint: GeoPoint): Boolean {
+        onPointSelected(geoPoint)
+        return true
+    }
+
+    private fun findClosestPointIndex(point: GeoPoint): Int {
+        var minDistance = Double.MAX_VALUE
+        var closestIndex = -1
+        
+        polygonPoints.forEachIndexed { index, polygonPoint ->
+            val distance = polygonPoint.point.distanceToAsDouble(point)
+            if (distance < minDistance) {
+                minDistance = distance
+                closestIndex = index
+            }
+        }
+        
+        return closestIndex
+    }
+
+    private fun handleExistingPointTap(index: Int): Boolean {
+        if (index == 0 && polygonPoints.size >= 3 && !isPolygonClosed) {
+            closePolygon()
+            return true
+        }
+        return false
+    }
+
+    private fun addNewPoint(point: GeoPoint) {
+        val newPoint = PolygonPoint(point, false)
+        polygonPoints.add(newPoint)
+        
+        val newMarker = createMarker(point, polygonPoints.size)
+        polygonMarkers.add(newMarker)
+        mapView.overlays.add(newMarker)
+        
+        updatePolygonVisual()
+        onPolygonPointAdded(point)
+    }
+
+    private fun insertPointInPolygon(point: GeoPoint) {
+        val (insertIndex, minDistance) = findBestInsertionPoint(point)
+        
+        if (minDistance < 0.0001) {
+            return
+        }
+        
+        polygonPoints.add(insertIndex, PolygonPoint(point, false))
+        val newMarker = createMarker(point, insertIndex + 1)
+        polygonMarkers.add(insertIndex, newMarker)
+        mapView.overlays.add(newMarker)
+        
+        updatePolygonVisual()
+        onPolygonPointAdded(point)
+    }
+
+    private fun findBestInsertionPoint(point: GeoPoint): Pair<Int, Double> {
+        var minSegmentDistance = Double.MAX_VALUE
+        var insertIndex = -1
+        
+        for (i in 0 until polygonPoints.size) {
+            val currentPoint = polygonPoints[i].point
+            val nextPoint = polygonPoints[(i + 1) % polygonPoints.size].point
+            
+            val distanceToSegment = distancePointToSegment(point, currentPoint, nextPoint)
+            if (distanceToSegment < minSegmentDistance) {
+                minSegmentDistance = distanceToSegment
+                insertIndex = i + 1
+            }
+        }
+        
+        return Pair(insertIndex, minSegmentDistance)
+    }
+
+    private fun createMarker(point: GeoPoint, index: Int): Marker {
+        return Marker(mapView).apply {
+            position = point
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+            infoWindow = null
+            title = "Point $index"
+        }
+    }
+
+    private fun updatePolygonVisual() {
+        if (isPolygonClosed) {
+            updateClosedPolygon()
+        } else {
+            updateOpenPolygon()
+        }
+        mapView.invalidate()
+    }
+
+    private fun updateClosedPolygon() {
+        drawnPolygon?.let { mapView.overlays.remove(it) }
+        drawnPolygon = Polygon().apply {
+            points = polygonPoints.map { it.point }
+            fillColor = AndroidColor.argb(60, 0, 0, 255)
+            strokeColor = AndroidColor.BLUE
+            strokeWidth = 4f
+        }
+        mapView.overlays.add(drawnPolygon)
+    }
+
+    private fun updateOpenPolygon() {
+        drawnPolyline?.let { mapView.overlays.remove(it) }
+        if (polygonPoints.size >= 2) {
+            drawnPolyline = PolylineOverlay(polygonPoints.map { it.point }).apply {
+                strokeColor = AndroidColor.BLUE
+                strokeWidth = 4f
+            }
+            mapView.overlays.add(drawnPolyline)
+        }
+    }
+
+    private fun closePolygon() {
+        isPolygonClosed = true
+        drawnPolyline?.let { mapView.overlays.remove(it) }
+        drawnPolyline = null
+        updateClosedPolygon()
+        onPolygonClosed()
+    }
+
+    fun setPolygonMode(active: Boolean) {
+        modePolygoneActif = active
+        if (!active) {
+            resetPolygon()
+        }
+    }
+
+    private fun resetPolygon() {
+        polygonPoints.clear()
+        polygonMarkers.forEach { mapView.overlays.remove(it) }
+        polygonMarkers.clear()
+        drawnPolyline?.let { mapView.overlays.remove(it) }
+        drawnPolyline = null
+        drawnPolygon?.let { mapView.overlays.remove(it) }
+        drawnPolygon = null
+        isPolygonClosed = false
+    }
+}
+
+// Classe pour gérer les parcelles
+class ParcelleManager(
+    private val context: Context,
+    private val mapView: MapView,
+    private val onParcelleAdded: (Parcelle) -> Unit,
+    private val onParcelleUpdated: (Parcelle) -> Unit,
+    private val onParcelleDeleted: (Parcelle) -> Unit
+) {
+    private var parcelleMarkers = mutableListOf<Marker>()
+    private var parcellePolygons = mutableMapOf<String, Polygon>()
+
+    fun addParcelle(parcelle: Parcelle) {
+        if (parcelle.polygonPoints.isEmpty()) {
+            addSinglePointParcelle(parcelle)
+        } else {
+            addPolygonParcelle(parcelle)
+        }
+        onParcelleAdded(parcelle)
+    }
+
+    private fun addSinglePointParcelle(parcelle: Parcelle) {
+        val marker = Marker(mapView).apply {
+            position = GeoPoint(parcelle.latitude, parcelle.longitude)
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
+            title = parcelle.name
+            snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
+        }
+        parcelleMarkers.add(marker)
+        mapView.overlays.add(marker)
+    }
+
+    private fun addPolygonParcelle(parcelle: Parcelle) {
+        val polygon = Polygon().apply {
+            points = parcelle.polygonPoints
+            fillColor = AndroidColor.argb(60, 0, 0, 255)
+            strokeColor = AndroidColor.BLUE
+            strokeWidth = 4f
+        }
+        mapView.overlays.add(polygon)
+        parcellePolygons[parcelle.id] = polygon
+    }
+
+    fun updateParcelle(parcelle: Parcelle) {
+        deleteParcelle(parcelle)
+        addParcelle(parcelle)
+        onParcelleUpdated(parcelle)
+    }
+
+    fun deleteParcelle(parcelle: Parcelle) {
+        parcellePolygons[parcelle.id]?.let { polygon ->
+            mapView.overlays.remove(polygon)
+            parcellePolygons.remove(parcelle.id)
+        }
+
+        parcelleMarkers.find { marker ->
+            abs(marker.position.latitude - parcelle.latitude) < 0.0001 &&
+            abs(marker.position.longitude - parcelle.longitude) < 0.0001
+        }?.let { marker ->
+            if (marker.isInfoWindowShown) {
+                marker.closeInfoWindow()
+            }
+            mapView.overlays.remove(marker)
+            parcelleMarkers.remove(marker)
+        }
+
+        onParcelleDeleted(parcelle)
+        mapView.invalidate()
+    }
+
+    fun clearAll() {
+        parcelleMarkers.forEach { mapView.overlays.remove(it) }
+        parcelleMarkers.clear()
+        parcellePolygons.values.forEach { mapView.overlays.remove(it) }
+        parcellePolygons.clear()
+        mapView.invalidate()
+    }
+}
+
+// Classe pour gérer les dialogues
+class ParcelleDialogManager(
+    private val context: Context,
+    private val onParcelleSaved: (ParcelleInfo) -> Unit,
+    private val onDialogDismissed: () -> Unit
+) {
+    var showDialog by mutableStateOf(false)
+        private set
+    var isEditing by mutableStateOf(false)
+        private set
+    var parcelleToEdit by mutableStateOf<Parcelle?>(null)
+        private set
+    var newParcelle by mutableStateOf(ParcelleInfo("", "", "", 0.0, 0.0))
+        private set
+
+    fun showAddDialog() {
+        isEditing = false
+        parcelleToEdit = null
+        newParcelle = ParcelleInfo("", "", "", 0.0, 0.0)
+        showDialog = true
+    }
+
+    fun showEditDialog(parcelle: Parcelle) {
+        isEditing = true
+        parcelleToEdit = parcelle
+        newParcelle = ParcelleInfo(
+            name = parcelle.name,
+            surface = parcelle.surface.toString(),
+            cepage = parcelle.cepage,
+            latitude = parcelle.latitude,
+            longitude = parcelle.longitude
+        )
+        showDialog = true
+    }
+
+    fun dismissDialog() {
+        showDialog = false
+        isEditing = false
+        parcelleToEdit = null
+        onDialogDismissed()
+    }
+
+    fun updateParcelleInfo(name: String = newParcelle.name,
+                          surface: String = newParcelle.surface,
+                          cepage: String = newParcelle.cepage) {
+        newParcelle = newParcelle.copy(
+            name = name,
+            surface = surface,
+            cepage = cepage
+        )
+    }
+
+    fun saveParcelle() {
+        if (newParcelle.name.isNotBlank() && 
+            newParcelle.surface.isNotBlank() && 
+            newParcelle.cepage.isNotBlank()) {
+            onParcelleSaved(newParcelle)
+            dismissDialog()
+        }
+    }
+}
+
+// Classe pour gérer les composants UI de la carte
+class MapUIComponents(
+    private val context: Context,
+    private val onSatelliteViewToggled: (Boolean) -> Unit,
+    private val onPolygonModeToggled: (Boolean) -> Unit,
+    private val onRefreshClicked: () -> Unit,
+    private val onAddClicked: () -> Unit
+) {
+    var isSatelliteView by mutableStateOf(false)
+        private set
+    var modePolygoneActif by mutableStateOf(false)
+        private set
+    var showHelpText by mutableStateOf(false)
+        private set
+    var polygonPointsCount by mutableStateOf(0)
+        private set
+    var isPolygonClosed by mutableStateOf(false)
+        private set
+
+    fun toggleSatelliteView() {
+        isSatelliteView = !isSatelliteView
+        onSatelliteViewToggled(isSatelliteView)
+    }
+
+    fun togglePolygonMode() {
+        modePolygoneActif = !modePolygoneActif
+        onPolygonModeToggled(modePolygoneActif)
+    }
+
+    fun refreshPolygon() {
+        onRefreshClicked()
+    }
+
+    fun addParcelle() {
+        onAddClicked()
+    }
+
+    fun updatePolygonState(pointsCount: Int, isClosed: Boolean) {
+        polygonPointsCount = pointsCount
+        isPolygonClosed = isClosed
+        showHelpText = modePolygoneActif && pointsCount < 3
+    }
+}
+
+// Classe pour gérer les composants UI de la liste des parcelles
+class ParcelleListUI(
+    private val parcelles: List<Parcelle>,
+    private val onParcelleSelected: (Parcelle) -> Unit,
+    private val onParcelleDeleted: (Parcelle) -> Unit
+) {
+    var showDeleteConfirmation by mutableStateOf(false)
+        private set
+    var parcelleToDelete by mutableStateOf<Parcelle?>(null)
+        private set
+
+    fun showDeleteConfirmation(parcelle: Parcelle) {
+        parcelleToDelete = parcelle
+        showDeleteConfirmation = true
+    }
+
+    fun dismissDeleteConfirmation() {
+        showDeleteConfirmation = false
+        parcelleToDelete = null
+    }
+
+    fun confirmDelete() {
+        parcelleToDelete?.let { parcelle ->
+            onParcelleDeleted(parcelle)
+            dismissDeleteConfirmation()
+        }
+    }
+
+    fun selectParcelle(parcelle: Parcelle) {
+        onParcelleSelected(parcelle)
+    }
+} 
+
+// Classe pour gérer l'état global de l'écran des paramètres
+class ParametresScreenState(
+    private val viewModel: ParametresViewModel,
+    private val context: Context,
+    private val mapView: MapView,
+    private val onNavigateToForm: (String) -> Unit
+) {
+    private val _selectedPoint = MutableStateFlow<GeoPoint?>(null)
+    val selectedPoint: StateFlow<GeoPoint?> = _selectedPoint.asStateFlow()
+
+    private val _polygonPoints = MutableStateFlow<List<PolygonPoint>>(emptyList())
+    val polygonPoints: StateFlow<List<PolygonPoint>> = _polygonPoints.asStateFlow()
+
+    private val _isPolygonClosed = MutableStateFlow(false)
+    val isPolygonClosed: StateFlow<Boolean> = _isPolygonClosed.asStateFlow()
+
+    private val mapEventHandler = MapEventHandler(
+        context = context,
+        mapView = mapView,
+        onPointSelected = { point -> handlePointSelected(point) },
+        onPolygonPointAdded = { point -> handlePolygonPointAdded(point) },
+        onPolygonPointRemoved = { index -> handlePolygonPointRemoved(index) },
+        onPolygonClosed = { handlePolygonClosed() }
+    )
+
+    private val parcelleManager = ParcelleManager(
+        context = context,
+        mapView = mapView,
+        onParcelleAdded = { parcelle -> viewModel.addParcelle(parcelle) },
+        onParcelleUpdated = { parcelle -> viewModel.updateParcelle(parcelle) },
+        onParcelleDeleted = { parcelle -> viewModel.deleteParcelle(parcelle) }
+    )
+
+    private val dialogManager = ParcelleDialogManager(
+        context = context,
+        onParcelleSaved = { parcelleInfo -> handleParcelleSaved(parcelleInfo) },
+        onDialogDismissed = { handleDialogDismissed() }
+    )
+
+    private val mapUI = MapUIComponents(
+        context = context,
+        onSatelliteViewToggled = { isSatellite -> handleSatelliteViewToggled(isSatellite) },
+        onPolygonModeToggled = { isActive -> handlePolygonModeToggled(isActive) },
+        onRefreshClicked = { handleRefreshClicked() },
+        onAddClicked = { handleAddClicked() }
+    )
+
+    private val listUI = ParcelleListUI(
+        parcelles = viewModel.parcelles.value, // Utiliser .value au lieu de collectAsState()
+        onParcelleSelected = { parcelle -> handleParcelleSelected(parcelle) },
+        onParcelleDeleted = { parcelle -> handleParcelleDeleted(parcelle) }
+    )
+
+    // Gestionnaires d'événements
+    private fun handlePointSelected(point: GeoPoint) {
+        Log.d("MapEvents", "Point sélectionné: lat=${point.latitude}, lon=${point.longitude}")
+        _selectedPoint.value = point
+        dialogManager.showAddDialog()
+    }
+
+    private fun handlePolygonPointAdded(point: GeoPoint) {
+        Log.d("MapEvents", "Point ajouté au polygone: lat=${point.latitude}, lon=${point.longitude}")
+        val currentPoints = _polygonPoints.value.toMutableList()
+        currentPoints.add(PolygonPoint(point, false))
+        _polygonPoints.value = currentPoints
+    }
+
+    private fun handlePolygonPointRemoved(index: Int) {
+        Log.d("MapEvents", "Point supprimé du polygone à l'index: $index")
+        val currentPoints = _polygonPoints.value.toMutableList()
+        if (index in currentPoints.indices) {
+            currentPoints.removeAt(index)
+            _polygonPoints.value = currentPoints
+        }
+    }
+
+    private fun handlePolygonClosed() {
+        Log.d("MapEvents", "Polygone fermé")
+        _isPolygonClosed.value = true
+        dialogManager.showAddDialog()
+    }
+
+    private fun handleParcelleSaved(parcelleInfo: ParcelleInfo) {
+        Log.d("MapEvents", "Sauvegarde de la parcelle: ${parcelleInfo.name}")
+        val parcelle = Parcelle(
+            id = UUID.randomUUID().toString(),
+            name = parcelleInfo.name,
+            surface = parcelleInfo.surface.toDoubleOrNull() ?: 0.0,
+            cepage = parcelleInfo.cepage,
+            typeConduite = "",
+            largeur = 0.0,
+            hauteur = 0.0,
+            latitude = _selectedPoint.value?.latitude ?: 0.0,
+            longitude = _selectedPoint.value?.longitude ?: 0.0,
+            polygonPoints = if (_isPolygonClosed.value) _polygonPoints.value.map { it.point } else emptyList()
+        )
+        parcelleManager.addParcelle(parcelle)
+        resetState()
+    }
+
+    private fun handleDialogDismissed() {
+        Log.d("MapEvents", "Dialogue fermé")
+        resetState()
+    }
+
+    private fun handleSatelliteViewToggled(isSatellite: Boolean) {
+        Log.d("MapEvents", "Changement de vue satellite: $isSatellite")
+        mapView.setTileSource(if (isSatellite) TileSourceFactory.USGS_SAT else TileSourceFactory.MAPNIK)
+        mapView.invalidate()
+    }
+
+    private fun handlePolygonModeToggled(isActive: Boolean) {
+        Log.d("MapEvents", "Changement de mode polygone: $isActive")
+        if (!isActive) {
+            resetState()
+        }
+        mapEventHandler.setPolygonMode(isActive)
+    }
+
+    private fun handleRefreshClicked() {
+        Log.d("MapEvents", "Rafraîchissement demandé")
+        resetState()
+    }
+
+    private fun handleAddClicked() {
+        Log.d("MapEvents", "Ajout demandé")
+        if (_isPolygonClosed.value && _polygonPoints.value.size >= 3) {
+            dialogManager.showAddDialog()
+        }
+    }
+
+    private fun handleParcelleSelected(parcelle: Parcelle) {
+        Log.d("MapEvents", "Parcelle sélectionnée: ${parcelle.name}")
+        onNavigateToForm("parcelle/${parcelle.id}")
+    }
+
+    private fun handleParcelleDeleted(parcelle: Parcelle) {
+        Log.d("MapEvents", "Suppression de la parcelle: ${parcelle.name}")
+        parcelleManager.deleteParcelle(parcelle)
+    }
+
+    private fun resetState() {
+        _selectedPoint.value = null
+        _polygonPoints.value = emptyList()
+        _isPolygonClosed.value = false
+        mapView.invalidate()
+    }
+
+    // Getters pour les composants UI
+    fun getMapEventHandler() = mapEventHandler
+    fun getParcelleManager() = parcelleManager
+    fun getDialogManager() = dialogManager
+    fun getMapUI() = mapUI
+    fun getListUI() = listUI
+}
+
+
 
