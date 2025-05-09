@@ -417,7 +417,18 @@ fun ParcellesBox(
               abs(marker.position.longitude - parcelle.longitude) < 0.0001)
         }
         
+        // Supprimer la parcelle de la base de données
         viewModel.deleteParcelle(parcelle)
+        
+        // Nettoyer tous les polygones liés à cette parcelle
+        mapView.overlays.removeAll { overlay ->
+            overlay is Polygon && overlay.points.any { point ->
+                abs(point.latitude - parcelle.latitude) < 0.0001 &&
+                abs(point.longitude - parcelle.longitude) < 0.0001
+            }
+        }
+        
+        // Forcer la mise à jour de la carte
         mapView.invalidate()
     }
 
@@ -575,14 +586,9 @@ fun ParcellesBox(
                             
                             // Réinitialiser le formulaire et le mode polygone seulement après la validation
                             if (modePolygoneActif) {
-                                // Créer un nouveau polygone permanent avec les points actuels
-                                val permanentPolygon = Polygon().apply {
-                                    points = polygonPoints.map { it.point }
-                                    fillColor = AndroidColor.argb(60, 0, 0, 255)
-                                    strokeColor = AndroidColor.BLUE
-                                    strokeWidth = 4f
-                                }
-                                mapView.overlays.add(permanentPolygon)
+                                // Supprimer l'ancien polygone temporaire s'il existe
+                                drawnPolygon?.let { mapView.overlays.remove(it) }
+                                drawnPolygon = null
                                 
                                 // Supprimer uniquement les marqueurs des points de construction
                                 polygonMarkers.forEach { marker ->
@@ -590,10 +596,6 @@ fun ParcellesBox(
                                 }
                                 polygonMarkers.clear()
                                 polygonPoints.clear()
-                                
-                                // Supprimer le polygone temporaire
-                                drawnPolygon?.let { mapView.overlays.remove(it) }
-                                drawnPolygon = null
                                 
                                 // Désactiver le mode polygone
                                 modePolygoneActif = false
