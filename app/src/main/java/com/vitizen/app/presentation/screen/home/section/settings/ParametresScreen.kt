@@ -459,7 +459,7 @@ fun ParcellesBox(
             // Mettre à jour les titres des marqueurs
             updateMarkerTitles()
             
-            mapView.invalidate()
+                mapView.invalidate()
             Log.d("MapEvents", "Point supprimé et polygone mis à jour")
             return true
         }
@@ -584,10 +584,10 @@ fun ParcellesBox(
                 mapView.setTileSource(if (isSatelliteView) TileSourceFactory.ChartbundleENRH else TileSourceFactory.MAPNIK)
                 
                 // Mise à jour des marqueurs et polygones
-                parcelleMarkers.forEach { marker ->
-                    mapView.overlays.remove(marker)
-                }
-                parcelleMarkers = emptyList()
+            parcelleMarkers.forEach { marker ->
+                mapView.overlays.remove(marker)
+            }
+            parcelleMarkers = emptyList()
 
                 parcellePolygons.values.forEach { polygon ->
                     mapView.overlays.remove(polygon)
@@ -597,14 +597,14 @@ fun ParcellesBox(
                 parcelles.forEach { parcelle ->
                     if (parcelle.polygonPoints.isEmpty()) {
                         val marker = Marker(mapView).apply {
-                            position = GeoPoint(parcelle.latitude, parcelle.longitude)
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    position = GeoPoint(parcelle.latitude, parcelle.longitude)
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                             icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
-                            title = parcelle.name
-                            snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
-                        }
+                    title = parcelle.name
+                    snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
+                }
                         parcelleMarkers = parcelleMarkers + marker
-                        mapView.overlays.add(marker)
+                mapView.overlays.add(marker)
                     } else {
                         val polygon = Polygon().apply {
                             points = parcelle.polygonPoints
@@ -615,8 +615,8 @@ fun ParcellesBox(
                         mapView.overlays.add(polygon)
                         parcellePolygons = parcellePolygons + (parcelle.id to polygon)
                     }
-                }
-                mapView.invalidate()
+            }
+            mapView.invalidate()
             } catch (e: Exception) {
                 Log.e("ParcellesBox", "Erreur lors de la mise à jour de la carte", e)
             }
@@ -729,7 +729,7 @@ fun ParcellesBox(
                             } else {
                                 // Changer l'icône du marqueur en gris après validation
                                 selectedMarker?.let { marker ->
-                                    marker.icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
+                                    //  marker.icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
                                     mapView.invalidate()
                                 }
                             }
@@ -1026,25 +1026,36 @@ fun ParcellesBox(
                                             }
                                         } else {
                                             // Mode point unique
-                                            selectedLatitude = geoPoint.latitude
-                                            selectedLongitude = geoPoint.longitude
-
-                                            selectedMarker?.let { mapView.overlays.remove(it) }
-                                            selectedMarker = Marker(mapView).apply {
-                                                position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
-                                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                                icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)
-                                                title = "Position sélectionnée"
-                                                snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
-                                            }
-                                            mapView.overlays.add(selectedMarker!!)
-                                            mapView.invalidate()
+                                            Log.d("MapEvents", "=== MODE POINT UNIQUE ===")
+                                            Log.d("MapEvents", "Ancien marqueur: ${selectedMarker?.title}")
+                                            Log.d("MapEvents", "Ancienne icône: ${selectedMarker?.icon}")
+                                            
+                                        selectedLatitude = geoPoint.latitude
+                                        selectedLongitude = geoPoint.longitude
+                                        
+                                        selectedMarker?.let { 
+                                                Log.d("MapEvents", "Suppression de l'ancien marqueur")
+                                                mapView.overlays.remove(it) 
                                         }
                                         
-                                        Log.d("MapEvents", "=== FIN ÉVÉNEMENT SINGLE TAP ===")
+                                        selectedMarker = Marker(mapView).apply {
+                                            position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
+                                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                                icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)
+                                            title = "Position sélectionnée"
+                                            snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
+                                                Log.d("MapEvents", "Création du nouveau marqueur")
+                                                Log.d("MapEvents", "Nouvelle icône: $icon")
+                                        }
+                                            
+                                            mapView.overlays.add(selectedMarker!!)
+                                            Log.d("MapEvents", "Marqueur ajouté à la carte")
+                                        mapView.invalidate()
+                                            Log.d("MapEvents", "=== FIN MODE POINT UNIQUE ===")
+                                        }
                                         return false
                                     }
-
+                                        
                                     override fun onScroll(event: MotionEvent?, event2: MotionEvent?, distanceX: Float, distanceY: Float, mapView: MapView?): Boolean {
                                         Log.d("MapEvents", "Scroll: dx=$distanceX, dy=$distanceY")
                                         return false
@@ -1088,7 +1099,7 @@ fun ParcellesBox(
                                                     }
                                                     mapView.overlays.add(drawnPolygon)
                                                     mapView.invalidate()
-                                            return true
+                                        return true
                                                 }
                                             }
                                         }
@@ -1393,32 +1404,34 @@ fun ParcellesBox(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { 
-                                    parcelleToEdit = parcelle
-                                    newParcelle = ParcelleInfo(
-                                        name = parcelle.name,
-                                        surface = parcelle.surface.toString(),
-                                        cepage = parcelle.cepage,
-                                        latitude = parcelle.latitude,
-                                        longitude = parcelle.longitude
-                                    )
-                                    selectedLatitude = parcelle.latitude
-                                    selectedLongitude = parcelle.longitude
-                                    
-                                    // Si la parcelle a un polygone, on ne l'affiche pas lors de la modification
-                                    if (parcelle.polygonPoints.isNotEmpty()) {
-                                        // Nettoyer les points et marqueurs existants
-                                        polygonMarkers.forEach { marker ->
-                                            mapView.overlays.remove(marker)
+                                    if (!modePolygoneActif) {
+                                        parcelleToEdit = parcelle
+                                        newParcelle = ParcelleInfo(
+                                            name = parcelle.name,
+                                            surface = parcelle.surface.toString(),
+                                            cepage = parcelle.cepage,
+                                            latitude = parcelle.latitude,
+                                            longitude = parcelle.longitude
+                                        )
+                                        selectedLatitude = parcelle.latitude
+                                        selectedLongitude = parcelle.longitude
+                                        
+                                        // Si la parcelle a un polygone, on ne l'affiche pas lors de la modification
+                                        if (parcelle.polygonPoints.isNotEmpty()) {
+                                            // Nettoyer les points et marqueurs existants
+                                            polygonMarkers.forEach { marker ->
+                                                mapView.overlays.remove(marker)
+                                            }
+                                            polygonMarkers.clear()
+                                            polygonPoints.clear()
+                                            drawnPolyline?.let { mapView.overlays.remove(it) }
+                                            drawnPolyline = null
+                                            mapView.invalidate()
                                         }
-                                        polygonMarkers.clear()
-                                        polygonPoints.clear()
-                                        drawnPolyline?.let { mapView.overlays.remove(it) }
-                                        drawnPolyline = null
-                                        mapView.invalidate()
+                                        
+                                        isEditingParcelle = true
+                                        showParcelleDialog = true
                                     }
-                                    
-                                    isEditingParcelle = true
-                                    showParcelleDialog = true
                                 },
                             color = MaterialTheme.colorScheme.surface,
                             tonalElevation = 2.dp
@@ -1461,13 +1474,21 @@ fun ParcellesBox(
                                     )
                                 }
                                 IconButton(
-                                    onClick = { deleteParcelle(parcelle) },
-                                    modifier = Modifier.size(32.dp)
+                                    onClick = { 
+                                        if (!modePolygoneActif) {
+                                            deleteParcelle(parcelle)
+                                        }
+                                    },
+                                    modifier = Modifier.size(32.dp),
+                                    enabled = !modePolygoneActif
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
                                         contentDescription = "Supprimer",
-                                        tint = MaterialTheme.colorScheme.error,
+                                        tint = if (modePolygoneActif) 
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                        else 
+                                            MaterialTheme.colorScheme.error,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
