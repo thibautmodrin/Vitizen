@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,8 +28,6 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Handler
-import android.os.Looper
 import android.view.MotionEvent
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -459,7 +456,7 @@ fun ParcellesBox(
             // Mettre à jour les titres des marqueurs
             updateMarkerTitles()
             
-            mapView.invalidate()
+                mapView.invalidate()
             Log.d("MapEvents", "Point supprimé et polygone mis à jour")
             return true
         } else {
@@ -498,7 +495,7 @@ fun ParcellesBox(
                 val newMarker = Marker(mapView).apply {
                     position = newPoint
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                    icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_polygon)
                     infoWindow = null
                     title = "Point ${insertIndex + 1}"
                 }
@@ -994,7 +991,7 @@ fun ParcellesBox(
                                                     val newMarker = Marker(mapView).apply {
                                                         position = newPoint
                                                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                                                        icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                                        icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_polygon)
                                                         infoWindow = null
                                                         title = "Point 1"
                                                     }
@@ -1036,7 +1033,7 @@ fun ParcellesBox(
                                                     val newMarker = Marker(mapView).apply {
                                                         position = newPoint
                                                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                                                        icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                                        icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_polygon)
                                                         infoWindow = null
                                                         title = "Point ${insertIndex + 1}"
                                                     }
@@ -1050,7 +1047,7 @@ fun ParcellesBox(
                                                     val newMarker = Marker(mapView).apply {
                                                         position = newPoint
                                                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                                                        icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                                        icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_polygon)
                                                         infoWindow = null
                                                         title = "Point ${polygonPoints.size}"
                                                     }
@@ -1098,11 +1095,11 @@ fun ParcellesBox(
                                         selectedMarker = Marker(mapView).apply {
                                             position = GeoPoint(geoPoint.latitude, geoPoint.longitude)
                                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                                icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)
+                                            icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)
                                             title = "Position sélectionnée"
                                             snippet = "Lat: ${geoPoint.latitude}, Lon: ${geoPoint.longitude}"
-                                                Log.d("MapEvents", "Création du nouveau marqueur")
-                                                Log.d("MapEvents", "Nouvelle icône: $icon")
+                                            Log.d("MapEvents", "Création du nouveau marqueur")
+                                            Log.d("MapEvents", "Nouvelle icône: $icon")
                                         }
                                             
                                             mapView.overlays.add(selectedMarker!!)
@@ -1227,7 +1224,7 @@ fun ParcellesBox(
                                                 val newMarker = Marker(mapView).apply {
                                                     position = newPoint
                                                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                                                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                                                    icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_polygon)
                                                     infoWindow = null
                                                     title = "Point ${insertIndex + 1}"
                                                 }
