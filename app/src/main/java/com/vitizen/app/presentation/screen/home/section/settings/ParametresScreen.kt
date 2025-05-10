@@ -699,42 +699,28 @@ fun ParcellesBox(
                                                     polygonMarkers.removeAt(closestPointIndex)
                                                 }
                                                 
-                                                // Vérifier si on doit passer en mode classique
-                                                if (polygonPoints.size < 3) {
-                                                    Log.d("MapEvents", "Passage en mode classique - moins de 3 points")
+                                                Log.d("MapEvents", "Nombre de points après suppression: ${polygonPoints.size}")
+                                                
+                                                // Réinitialiser l'état si tous les points sont supprimés
+                                                if (polygonPoints.isEmpty()) {
+                                                    Log.d("MapEvents", "Tous les points supprimés - Réinitialisation de l'état")
                                                     isPolygonClosed = false
                                                     drawnPolygon?.let { mapView.overlays.remove(it) }
                                                     drawnPolygon = null
+                                                    mapView.invalidate()
+                                                    return true
                                                 }
                                                 
-                                                // Mettre à jour le polygone si fermé
-                                                if (isPolygonClosed) {
-                                                    drawnPolygon?.let { mapView.overlays.remove(it) }
-                                                    drawnPolygon = Polygon().apply {
-                                                        points = polygonPoints.map { it.point }
-                                                        fillColor = AndroidColor.argb(60, 0, 0, 255)
-                                                        strokeColor = AndroidColor.BLUE
-                                                        strokeWidth = 4f
-                                                    }
-                                                    mapView.overlays.add(drawnPolygon)
-                                                } else {
-                                                    drawnPolyline?.let { mapView.overlays.remove(it) }
-                                                    if (polygonPoints.size >= 2) {
-                                                        drawnPolyline = PolylineOverlay(polygonPoints.map { it.point }).apply {
-                                                            strokeColor = AndroidColor.BLUE
-                                                            strokeWidth = 4f
-                                                        }
-                                                        mapView.overlays.add(drawnPolyline)
-                                                    }
+                                                // Mettre à jour le polygone
+                                                drawnPolygon?.let { mapView.overlays.remove(it) }
+                                                drawnPolygon = Polygon().apply {
+                                                    points = polygonPoints.map { it.point }
+                                                    fillColor = AndroidColor.argb(60, 0, 0, 255)
+                                                    strokeColor = AndroidColor.BLUE
+                                                    strokeWidth = 4f
                                                 }
-                                                
-                                                // Mettre à jour les titres des marqueurs restants
-                                                polygonMarkers.forEachIndexed { index, marker ->
-                                                    marker.title = "Point ${index + 1}"
-                                                }
-                                                
+                                                mapView.overlays.add(drawnPolygon)
                                                 mapView.invalidate()
-                                                Log.d("MapEvents", "Point supprimé. Nouveau nombre de points: ${polygonPoints.size}")
                                                 return true
                                             }
                                         }
@@ -1076,6 +1062,16 @@ fun ParcellesBox(
                                                 }
                                                 
                                                 Log.d("MapEvents", "Nombre de points après suppression: ${polygonPoints.size}")
+                                                
+                                                // Réinitialiser l'état si tous les points sont supprimés
+                                                if (polygonPoints.isEmpty()) {
+                                                    Log.d("MapEvents", "Tous les points supprimés - Réinitialisation de l'état")
+                                                    isPolygonClosed = false
+                                                    drawnPolygon?.let { mapView.overlays.remove(it) }
+                                                    drawnPolygon = null
+                                                    mapView.invalidate()
+                                                    return true
+                                                }
                                                 
                                                 // Mettre à jour le polygone
                                                 drawnPolygon?.let { mapView.overlays.remove(it) }
