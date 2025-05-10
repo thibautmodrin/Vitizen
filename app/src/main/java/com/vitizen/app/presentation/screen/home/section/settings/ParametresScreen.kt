@@ -414,7 +414,7 @@ fun ParcellesBox(
         }
     }
 
-    fun handleClosedPolygonTouch(geoPoint: GeoPoint, mapView: MapView): Boolean {
+    fun handleClosedPolygonTouch(geoPoint: IGeoPoint, mapView: MapView): Boolean {
         Log.d("MapEvents", "=== GESTION POLYGONE FERMÉ ===")
         
         // Vérifier si on clique sur un point existant
@@ -459,16 +459,73 @@ fun ParcellesBox(
             // Mettre à jour les titres des marqueurs
             updateMarkerTitles()
             
-                mapView.invalidate()
+            mapView.invalidate()
             Log.d("MapEvents", "Point supprimé et polygone mis à jour")
             return true
+        } else {
+            // Vérifier si le point est à l'intérieur du polygone
+            if (isPointInPolygon(geoPoint, polygonPoints.map { it.point })) {
+                Log.d("MapEvents", "Point à l'intérieur du polygone - insertion")
+                val newPoint = GeoPoint(geoPoint.latitude, geoPoint.longitude)
+                
+                // Trouver le segment le plus proche
+                var minSegmentDistance = Double.MAX_VALUE
+                var insertIndex = -1
+                
+                for (i in 0 until polygonPoints.size) {
+                    val currentPoint = polygonPoints[i].point
+                    val nextPoint = polygonPoints[(i + 1) % polygonPoints.size].point
+                    
+                    val distanceToSegment = distancePointToSegment(newPoint, currentPoint, nextPoint)
+                    Log.d("MapEvents", "Distance au segment $i: $distanceToSegment")
+                    if (distanceToSegment < minSegmentDistance) {
+                        minSegmentDistance = distanceToSegment
+                        insertIndex = i + 1
+                    }
+                }
+                
+                Log.d("MapEvents", "Distance minimale au segment: $minSegmentDistance")
+                Log.d("MapEvents", "Index d'insertion: $insertIndex")
+                
+                if (minSegmentDistance < 0.0001) {
+                    Log.d("MapEvents", "Point trop proche d'un segment existant")
+                    return true
+                }
+                
+                // Insérer le nouveau point
+                polygonPoints.add(insertIndex, PolygonPoint(newPoint, false))
+                
+                val newMarker = Marker(mapView).apply {
+                    position = newPoint
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    icon = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_mylocation)
+                    infoWindow = null
+                    title = "Point ${insertIndex + 1}"
+                }
+                polygonMarkers.add(insertIndex, newMarker)
+                mapView.overlays.add(newMarker)
+                
+                // Mettre à jour le polygone
+                drawnPolygon?.let { mapView.overlays.remove(it) }
+                drawnPolygon = Polygon().apply {
+                    points = polygonPoints.map { it.point }
+                    fillColor = AndroidColor.argb(60, 0, 0, 255)
+                    strokeColor = AndroidColor.BLUE
+                    strokeWidth = 4f
+                }
+                mapView.overlays.add(drawnPolygon)
+                mapView.invalidate()
+                
+                Log.d("MapEvents", "Nouveau point inséré et polygone mis à jour")
+                return true
+            }
         }
         
         Log.d("MapEvents", "=== FIN GESTION POLYGONE FERMÉ ===")
         return false
     }
 
-    fun handleOpenPolygonTouch(geoPoint: GeoPoint, mapView: MapView): Boolean {
+    fun handleOpenPolygonTouch(geoPoint: IGeoPoint, mapView: MapView): Boolean {
         Log.d("MapEvents", "=== GESTION POLYGONE OUVERT ===")
         
         // Vérifier si on clique sur un point existant
@@ -1136,7 +1193,7 @@ fun ParcellesBox(
                                             Log.d("MapEvents", "Point géographique: lat=${geoPoint.latitude}, lon=${geoPoint.longitude}")
                                             
                                             // Vérifier si le point est à l'intérieur du polygone
-                                            if (isPointInPolygon(geoPoint as GeoPoint, polygonPoints.map { it.point })) {
+                                            if (isPointInPolygon(geoPoint, polygonPoints.map { it.point })) {
                                                 Log.d("MapEvents", "Point à l'intérieur du polygone - insertion")
                                                 val newPoint = GeoPoint(geoPoint.latitude, geoPoint.longitude)
                                                 
@@ -1210,9 +1267,9 @@ fun ParcellesBox(
                                             Log.d("MapEvents", "Point géographique: lat=${geoPoint.latitude}, lon=${geoPoint.longitude}")
                                             
                                             if (isPolygonClosed) {
-                                                return handleClosedPolygonTouch(geoPoint as GeoPoint, mapView)
+                                                return handleClosedPolygonTouch(geoPoint, mapView)
                                             } else {
-                                                return handleOpenPolygonTouch(geoPoint as GeoPoint, mapView)
+                                                return handleOpenPolygonTouch(geoPoint, mapView)
                                             }
                                         }
                                         
@@ -1405,16 +1462,16 @@ fun ParcellesBox(
                                 .fillMaxWidth()
                                 .clickable { 
                                     if (!modePolygoneActif) {
-                                        parcelleToEdit = parcelle
-                                        newParcelle = ParcelleInfo(
-                                            name = parcelle.name,
-                                            surface = parcelle.surface.toString(),
-                                            cepage = parcelle.cepage,
-                                            latitude = parcelle.latitude,
-                                            longitude = parcelle.longitude
-                                        )
-                                        selectedLatitude = parcelle.latitude
-                                        selectedLongitude = parcelle.longitude
+                                    parcelleToEdit = parcelle
+                                    newParcelle = ParcelleInfo(
+                                        name = parcelle.name,
+                                        surface = parcelle.surface.toString(),
+                                        cepage = parcelle.cepage,
+                                        latitude = parcelle.latitude,
+                                        longitude = parcelle.longitude
+                                    )
+                                    selectedLatitude = parcelle.latitude
+                                    selectedLongitude = parcelle.longitude
                                         
                                         // Si la parcelle a un polygone, on ne l'affiche pas lors de la modification
                                         if (parcelle.polygonPoints.isNotEmpty()) {
@@ -1429,8 +1486,8 @@ fun ParcellesBox(
                                             mapView.invalidate()
                                         }
                                         
-                                        isEditingParcelle = true
-                                        showParcelleDialog = true
+                                    isEditingParcelle = true
+                                    showParcelleDialog = true
                                     }
                                 },
                             color = MaterialTheme.colorScheme.surface,
@@ -1866,7 +1923,7 @@ class PolylineOverlay(points: List<GeoPoint>) : Overlay() {
 }
 
 // Modifier la fonction isPointInPolygon pour accepter GeoPoint
-fun isPointInPolygon(point: GeoPoint, polygon: List<GeoPoint>): Boolean {
+fun isPointInPolygon(point: IGeoPoint, polygon: List<GeoPoint>): Boolean {
     var inside = false
     var j = polygon.size - 1
     
