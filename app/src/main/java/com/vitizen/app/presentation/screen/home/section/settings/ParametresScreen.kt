@@ -631,17 +631,27 @@ fun ParcellesBox(
         hasLocationPermission = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }
 
-    LaunchedEffect(isSatelliteView, parcelles, isMapReady) {
+    // Effet pour la gestion de la vue satellite
+    LaunchedEffect(isSatelliteView, isMapReady) {
         if (isMapReady) {
             try {
-                // Mise à jour de la vue satellite
                 mapView.setTileSource(if (isSatelliteView) TileSourceFactory.ChartbundleENRH else TileSourceFactory.MAPNIK)
-                
-                // Mise à jour des marqueurs et polygones
-            parcelleMarkers.forEach { marker ->
-                mapView.overlays.remove(marker)
+                mapView.invalidate()
+            } catch (e: Exception) {
+                Log.e("ParcellesBox", "Erreur lors du changement de vue", e)
             }
-            parcelleMarkers = emptyList()
+        }
+    }
+
+    // Effet pour la gestion des parcelles
+    LaunchedEffect(parcelles, isMapReady) {
+        if (isMapReady) {
+            try {
+                // Mise à jour des marqueurs et polygones
+                parcelleMarkers.forEach { marker ->
+                    mapView.overlays.remove(marker)
+                }
+                parcelleMarkers = emptyList()
 
                 parcellePolygons.values.forEach { polygon ->
                     mapView.overlays.remove(polygon)
@@ -651,14 +661,14 @@ fun ParcellesBox(
                 parcelles.forEach { parcelle ->
                     if (parcelle.polygonPoints.isEmpty()) {
                         val marker = Marker(mapView).apply {
-                    position = GeoPoint(parcelle.latitude, parcelle.longitude)
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                            position = GeoPoint(parcelle.latitude, parcelle.longitude)
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                             icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
-                    title = parcelle.name
-                    snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
-                }
+                            title = parcelle.name
+                            snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
+                        }
                         parcelleMarkers = parcelleMarkers + marker
-                mapView.overlays.add(marker)
+                        mapView.overlays.add(marker)
                     } else {
                         val polygon = Polygon().apply {
                             points = parcelle.polygonPoints
@@ -669,10 +679,10 @@ fun ParcellesBox(
                         mapView.overlays.add(polygon)
                         parcellePolygons = parcellePolygons + (parcelle.id to polygon)
                     }
-            }
-            mapView.invalidate()
+                }
+                mapView.invalidate()
             } catch (e: Exception) {
-                Log.e("ParcellesBox", "Erreur lors de la mise à jour de la carte", e)
+                Log.e("ParcellesBox", "Erreur lors de la mise à jour des parcelles", e)
             }
         }
     }
