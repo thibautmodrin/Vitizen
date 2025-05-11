@@ -69,6 +69,29 @@ data class PolygonPoint(
     val isParcelle: Boolean = false
 )
 
+// Constantes de base pour la précision de détection
+private const val BASE_POINT_DETECTION_THRESHOLD = 50.0  // Distance en pixels pour détecter un point existant
+private const val BASE_SEGMENT_DETECTION_THRESHOLD = 0.0001  // Distance en degrés pour la détection de segments
+private const val BASE_POLYGON_CLOSURE_THRESHOLD = 50.0  // Distance en pixels pour fermer le polygone
+
+// Fonction pour calculer les seuils en fonction du zoom
+private fun calculateThresholds(mapView: MapView): Triple<Double, Double, Double> {
+    val zoomLevel = mapView.zoomLevelDouble
+    val zoomFactor = when {
+        zoomLevel >= 18.0 -> 0.5  // Zoom très proche
+        zoomLevel >= 16.0 -> 0.7  // Zoom proche
+        zoomLevel >= 14.0 -> 1.0  // Zoom normal
+        zoomLevel >= 12.0 -> 1.5  // Zoom éloigné
+        else -> 2.0  // Zoom très éloigné
+    }
+    
+    return Triple(
+        BASE_POINT_DETECTION_THRESHOLD * zoomFactor,
+        BASE_SEGMENT_DETECTION_THRESHOLD * zoomFactor,
+        BASE_POLYGON_CLOSURE_THRESHOLD * zoomFactor
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ParametresScreen(
@@ -413,8 +436,9 @@ fun ParcellesBox(
 
     fun handleClosedPolygonTouch(geoPoint: IGeoPoint, mapView: MapView): Boolean {
         Log.d("MapEvents", "=== GESTION POLYGONE FERMÉ ===")
+        val (pointThreshold, segmentThreshold, _) = calculateThresholds(mapView)
+        Log.d("MapEvents", "Seuils actuels - Point: $pointThreshold, Segment: $segmentThreshold")
         
-        // Vérifier si on clique sur un point existant
         var minDistance = Double.MAX_VALUE
         var closestPointIndex = -1
         
@@ -429,7 +453,7 @@ fun ParcellesBox(
         
         Log.d("MapEvents", "Point le plus proche: index=$closestPointIndex, distance=$minDistance")
         
-        if (minDistance < 100) {
+        if (minDistance < pointThreshold) {
             Log.d("MapEvents", "Clic sur un point existant - Suppression")
             Log.d("MapEvents", "Nombre de points avant suppression: ${polygonPoints.size}")
             
@@ -456,7 +480,7 @@ fun ParcellesBox(
             // Mettre à jour les titres des marqueurs
             updateMarkerTitles()
             
-                mapView.invalidate()
+            mapView.invalidate()
             Log.d("MapEvents", "Point supprimé et polygone mis à jour")
             return true
         } else {
@@ -484,7 +508,7 @@ fun ParcellesBox(
                 Log.d("MapEvents", "Distance minimale au segment: $minSegmentDistance")
                 Log.d("MapEvents", "Index d'insertion: $insertIndex")
                 
-                if (minSegmentDistance < 0.0001) {
+                if (minSegmentDistance < segmentThreshold) {
                     Log.d("MapEvents", "Point trop proche d'un segment existant")
                     return true
                 }
@@ -524,8 +548,9 @@ fun ParcellesBox(
 
     fun handleOpenPolygonTouch(geoPoint: IGeoPoint, mapView: MapView): Boolean {
         Log.d("MapEvents", "=== GESTION POLYGONE OUVERT ===")
+        val (pointThreshold, _, _) = calculateThresholds(mapView)
+        Log.d("MapEvents", "Seuil de détection des points: $pointThreshold")
         
-        // Vérifier si on clique sur un point existant
         var minDistance = Double.MAX_VALUE
         var closestPointIndex = -1
         
@@ -540,7 +565,7 @@ fun ParcellesBox(
         
         Log.d("MapEvents", "Point le plus proche: index=$closestPointIndex, distance=$minDistance")
         
-        if (minDistance < 100) {
+        if (minDistance < pointThreshold) {
             // Vérifier si on peut fermer le polygone
             if (closestPointIndex == 0 && polygonPoints.size >= 3) {
                 Log.d("MapEvents", "Fermeture du polygone")
@@ -863,6 +888,9 @@ fun ParcellesBox(
                                             val projection = mapView.projection
                                             val geoPoint = projection.fromPixels(event.x.toInt(), event.y.toInt())
                                             
+                                            // Calculer les seuils
+                                            val (pointThreshold, _, _) = calculateThresholds(mapView)
+                                            
                                             // Vérifier si on clique sur un point existant
                                             var minDistance = Double.MAX_VALUE
                                             var closestPointIndex = -1
@@ -876,7 +904,7 @@ fun ParcellesBox(
                                             }
                                             
                                             // Si on clique sur un point existant
-                                            if (minDistance < 100) {
+                                            if (minDistance < pointThreshold) {
                                                 // Vérifier si on peut fermer le polygone
                                                 if (closestPointIndex == 0 && polygonPoints.size >= 3 && !isPolygonClosed) {
                                                     Log.d("MapEvents", "Fermeture du polygone")
@@ -964,6 +992,9 @@ fun ParcellesBox(
                                         Log.d("MapEvents", "Point géographique: lat=${geoPoint.latitude}, lon=${geoPoint.longitude}")
                                         
                                         if (modePolygoneActif) {
+                                            // Calculer les seuils
+                                            val (pointThreshold, segmentThreshold, _) = calculateThresholds(mapView)
+                                            
                                             Log.d("MapEvents", "Mode polygone actif")
                                             Log.d("MapEvents", "État actuel:")
                                             Log.d("MapEvents", "- Nombre de points: ${polygonPoints.size}")
@@ -984,7 +1015,7 @@ fun ParcellesBox(
                                             
                                             Log.d("MapEvents", "Point le plus proche: index=$closestPointIndex, distance=$minDistance")
                                             
-                                            if (minDistance < 10) {
+                                            if (minDistance < pointThreshold) {
                                                 // Si on clique sur un point existant, on ne fait rien ici
                                                 // La suppression est gérée dans onTouchEvent
                                                 return true
@@ -1032,7 +1063,7 @@ fun ParcellesBox(
                                                     Log.d("MapEvents", "Distance minimale trouvée: $minSegmentDistance")
                                                     Log.d("MapEvents", "Index d'insertion choisi: $insertIndex")
                                                     
-                                                    if (minSegmentDistance < 0.0001) {
+                                                    if (minSegmentDistance < segmentThreshold) {
                                                         Log.d("MapEvents", "Point trop proche d'un segment existant, insertion annulée")
                                                         return true
                                                     }
@@ -1140,16 +1171,18 @@ fun ParcellesBox(
                                 overlays.add(object : Overlay() {
                                     override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
                                         if (modePolygoneActif && polygonPoints.size >= 3 && !isPolygonClosed) {
+                                            val (_, _, closureThreshold) = calculateThresholds(mapView)
+                                            Log.d("MapEvents", "Seuil de fermeture du polygone: $closureThreshold")
+                                            
                                             val projection = mapView.projection
                                             val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
                                             
-                                            // Vérifier si on clique sur le premier point
                                             val firstPoint = polygonPoints.firstOrNull()
                                             if (firstPoint != null) {
                                                 val distance = firstPoint.point.distanceToAsDouble(geoPoint)
                                                 Log.d("MapEvents", "Vérification du recentrage - Distance au premier point: $distance")
                                                 
-                                                if (distance < 100) {
+                                                if (distance < closureThreshold) {
                                                     Log.d("MapEvents", "Recentrage détecté sur le premier point")
                                                     isPolygonClosed = true
                                                     drawnPolyline?.let { mapView.overlays.remove(it) }
@@ -1163,7 +1196,7 @@ fun ParcellesBox(
                                                     }
                                                     mapView.overlays.add(drawnPolygon)
                                                     mapView.invalidate()
-                                        return true
+                                                    return true
                                                 }
                                             }
                                         }
@@ -1199,6 +1232,9 @@ fun ParcellesBox(
                                             val geoPoint = projection.fromPixels(e.x.toInt(), e.y.toInt())
                                             Log.d("MapEvents", "Point géographique: lat=${geoPoint.latitude}, lon=${geoPoint.longitude}")
                                             
+                                            // Calculer les seuils
+                                            val (_, segmentThreshold, _) = calculateThresholds(mapView)
+                                            
                                             // Vérifier si le point est à l'intérieur du polygone
                                             if (isPointInPolygon(geoPoint, polygonPoints.map { it.point })) {
                                                 Log.d("MapEvents", "Point à l'intérieur du polygone - insertion")
@@ -1223,7 +1259,7 @@ fun ParcellesBox(
                                                 Log.d("MapEvents", "Distance minimale au segment: $minSegmentDistance")
                                                 Log.d("MapEvents", "Index d'insertion: $insertIndex")
                                                 
-                                                if (minSegmentDistance < 0.0001) {
+                                                if (minSegmentDistance < segmentThreshold) {
                                                     Log.d("MapEvents", "Point trop proche d'un segment existant")
                                                     return true
                                                 }
