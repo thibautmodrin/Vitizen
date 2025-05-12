@@ -50,6 +50,7 @@ import java.util.*
 import androidx.compose.foundation.layout.Arrangement
 import com.vitizen.app.R
 import org.osmdroid.api.IGeoPoint
+import kotlin.math.sqrt
 
 data class TabItem(
     val title: String,
@@ -98,7 +99,7 @@ fun ParametresScreen(
     viewModel: ParametresViewModel = hiltViewModel(),
     onNavigateToForm: (String) -> Unit,
 ) {
-    var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tabs = remember {
         listOf(
             TabItem("Infos", Icons.Default.Info),
@@ -382,8 +383,8 @@ fun ParcellesBox(
     var isMapReady by remember { mutableStateOf(false) }
     var selectedMarker: Marker? by remember { mutableStateOf(null) }
     var isSatelliteView by remember { mutableStateOf(false) }
-    var selectedLatitude by remember { mutableStateOf(46.603354) }
-    var selectedLongitude by remember { mutableStateOf(1.888334) }
+    var selectedLatitude by remember { mutableDoubleStateOf(46.603354) }
+    var selectedLongitude by remember { mutableDoubleStateOf(1.888334) }
     var showParcelleDialog by remember { mutableStateOf(false) }
     var newParcelle by remember { mutableStateOf(ParcelleInfo("", "", "", 0.0, 0.0)) }
     var isEditingParcelle by remember { mutableStateOf(false) }
@@ -397,7 +398,7 @@ fun ParcellesBox(
     var polygonPoints by remember { mutableStateOf(mutableListOf<PolygonPoint>()) }
     var drawnPolyline: PolylineOverlay? by remember { mutableStateOf(null) }
     var polygonMarkers by remember { mutableStateOf(mutableListOf<Marker>()) }
-    var polygonPointsCount by remember { mutableStateOf(0) }
+    var polygonPointsCount by remember { mutableIntStateOf(0) }
     var showHelpText by remember { mutableStateOf(false) }
     var isPolygonClosed by remember { mutableStateOf(false) }
     var drawnPolygon: Polygon? by remember { mutableStateOf(null) }
@@ -673,10 +674,10 @@ fun ParcellesBox(
         if (isMapReady) {
             try {
                 // Mise à jour des marqueurs et polygones
-                parcelleMarkers.forEach { marker ->
-                    mapView.overlays.remove(marker)
-                }
-                parcelleMarkers = emptyList()
+            parcelleMarkers.forEach { marker ->
+                mapView.overlays.remove(marker)
+            }
+            parcelleMarkers = emptyList()
 
                 parcellePolygons.values.forEach { polygon ->
                     mapView.overlays.remove(polygon)
@@ -686,14 +687,14 @@ fun ParcellesBox(
                 parcelles.forEach { parcelle ->
                     if (parcelle.polygonPoints.isEmpty()) {
                         val marker = Marker(mapView).apply {
-                            position = GeoPoint(parcelle.latitude, parcelle.longitude)
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    position = GeoPoint(parcelle.latitude, parcelle.longitude)
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                             icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
-                            title = parcelle.name
-                            snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
-                        }
+                    title = parcelle.name
+                    snippet = "${parcelle.surface} ha • ${parcelle.cepage}"
+                }
                         parcelleMarkers = parcelleMarkers + marker
-                        mapView.overlays.add(marker)
+                mapView.overlays.add(marker)
                     } else {
                         val polygon = Polygon().apply {
                             points = parcelle.polygonPoints
@@ -704,8 +705,8 @@ fun ParcellesBox(
                         mapView.overlays.add(polygon)
                         parcellePolygons = parcellePolygons + (parcelle.id to polygon)
                     }
-                }
-                mapView.invalidate()
+            }
+            mapView.invalidate()
             } catch (e: Exception) {
                 Log.e("ParcellesBox", "Erreur lors de la mise à jour des parcelles", e)
             }
@@ -1196,7 +1197,7 @@ fun ParcellesBox(
                                                     }
                                                     mapView.overlays.add(drawnPolygon)
                                                     mapView.invalidate()
-                                                    return true
+                                        return true
                                                 }
                                             }
                                         }
@@ -1308,11 +1309,11 @@ fun ParcellesBox(
                                             val projection = mapView.projection
                                             val geoPoint = projection.fromPixels(event.x.toInt(), event.y.toInt())
                                             Log.d("MapEvents", "Point géographique: lat=${geoPoint.latitude}, lon=${geoPoint.longitude}")
-                                            
-                                            if (isPolygonClosed) {
-                                                return handleClosedPolygonTouch(geoPoint, mapView)
+
+                                            return if (isPolygonClosed) {
+                                                handleClosedPolygonTouch(geoPoint, mapView)
                                             } else {
-                                                return handleOpenPolygonTouch(geoPoint, mapView)
+                                                handleOpenPolygonTouch(geoPoint, mapView)
                                             }
                                         }
                                         
@@ -1516,19 +1517,6 @@ fun ParcellesBox(
                                     selectedLatitude = parcelle.latitude
                                     selectedLongitude = parcelle.longitude
                                         
-                                        // Si la parcelle a un polygone, on ne l'affiche pas lors de la modification
-                                        if (parcelle.polygonPoints.isNotEmpty()) {
-                                            // Nettoyer les points et marqueurs existants
-                                            polygonMarkers.forEach { marker ->
-                                                mapView.overlays.remove(marker)
-                                            }
-                                            polygonMarkers.clear()
-                                            polygonPoints.clear()
-                                            drawnPolyline?.let { mapView.overlays.remove(it) }
-                                            drawnPolyline = null
-                                            mapView.invalidate()
-                                        }
-                                        
                                     isEditingParcelle = true
                                     showParcelleDialog = true
                                     }
@@ -1579,7 +1567,7 @@ fun ParcellesBox(
                                             deleteParcelle(parcelle)
                                         }
                                     },
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(20.dp),
                                     enabled = !modePolygoneActif
                                 ) {
                                     Icon(
@@ -1595,6 +1583,74 @@ fun ParcellesBox(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // Effet pour centrer la carte de manière asynchrone
+    LaunchedEffect(parcelleToEdit) {
+        parcelleToEdit?.let { parcelle ->
+            if (!modePolygoneActif) {
+                // Centrer la carte sur la parcelle
+                if (parcelle.polygonPoints.isNotEmpty()) {
+                    // Calculer la boîte englobante du polygone
+                    var minLat = Double.MAX_VALUE
+                    var maxLat = Double.MIN_VALUE
+                    var minLon = Double.MAX_VALUE
+                    var maxLon = Double.MIN_VALUE
+                    
+                    parcelle.polygonPoints.forEach { point ->
+                        minLat = minOf(minLat, point.latitude)
+                        maxLat = maxOf(maxLat, point.latitude)
+                        minLon = minOf(minLon, point.longitude)
+                        maxLon = maxOf(maxLon, point.longitude)
+                    }
+                    
+                    // Ajouter une marge de 10%
+                    val latMargin = (maxLat - minLat) * 0.1
+                    val lonMargin = (maxLon - minLon) * 0.1
+                    
+                    // Centrer la carte sur le polygone avec la marge
+                    mapView.controller.animateTo(
+                        GeoPoint(
+                            (minLat + maxLat) / 2,
+                            (minLon + maxLon) / 2
+                        )
+                    )
+                    
+                    // Ajuster le zoom pour voir tout le polygone
+                    mapView.controller.zoomToSpan(
+                        maxLat - minLat + latMargin * 2,
+                        maxLon - minLon + lonMargin * 2
+                    )
+                } else {
+                    // Pour une parcelle avec un seul point, centrer directement dessus
+                    mapView.controller.animateTo(
+                        GeoPoint(parcelle.latitude, parcelle.longitude),
+                        5.0,// Niveau de zoom
+                        1500L // Durée de l'animation en ms
+
+                    )
+                }
+                
+                // Si la parcelle a un polygone, on ne l'affiche pas lors de la modification
+                // Note: Ce bloc était précédemment dans le clickable, il est déplacé ici
+                // pour s'assurer qu'il s'exécute après le centrage.
+                // Cependant, il semble qu'il nettoie les polygones de la carte ce qui pourrait
+                // être contre-intuitif si on veut voir le polygone sur lequel on a centré.
+                // À revoir si le comportement est celui attendu.
+                if (parcelle.polygonPoints.isNotEmpty()) {
+                    // Nettoyer les points et marqueurs existants (du mode édition polygone actif)
+                    polygonMarkers.forEach { marker ->
+                        mapView.overlays.remove(marker)
+                    }
+                    polygonMarkers.clear()
+                    polygonPoints.clear()
+                    drawnPolyline?.let { mapView.overlays.remove(it) }
+                    drawnPolyline = null
+                    // On ne nettoie pas drawnPolygon ici car il pourrait s'agir du polygone de la parcelle
+                    mapView.invalidate()
                 }
             }
         }
@@ -1927,7 +1983,7 @@ private fun distancePointToSegment(point: GeoPoint, segmentStart: GeoPoint, segm
 
     val dx = x - xx
     val dy = y - yy
-    val distance = Math.sqrt(dx * dx + dy * dy)
+    val distance = sqrt(dx * dx + dy * dy)
     Log.d("MapEvents", "Distance calculée: $distance")
     Log.d("MapEvents", "=== FIN CALCUL DISTANCE ===")
     return distance
