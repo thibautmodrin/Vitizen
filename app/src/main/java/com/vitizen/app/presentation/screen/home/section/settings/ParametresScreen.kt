@@ -59,6 +59,14 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.scale
+import androidx.compose.material3.SwipeToDismiss
+import androidx.compose.material3.DismissDirection
+import androidx.compose.material3.DismissValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 data class TabItem(
     val title: String,
@@ -1552,155 +1560,219 @@ fun ParcellesBox(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(parcelles) { parcelle ->
-                        var isPressed by remember { mutableStateOf(false) }
-                        val scale by animateFloatAsState(
-                            targetValue = if (isPressed) 0.95f else 1f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessLow
-                            ),
-                            label = "scale"
-                        )
-                        val elevation by animateDpAsState(
-                            targetValue = if (isPressed) 0.dp else 2.dp,
-                            animationSpec = tween(durationMillis = 100),
-                            label = "elevation"
-                        )
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .scale(scale)
-                                .pointerInput(parcelle) {
-                                    detectTapGestures(
-                                        onPress = {
-                                            isPressed = true
-                                            tryAwaitRelease()
-                                            isPressed = false
-                                        },
-                                        onTap = {
-                                            // Simple clic : centrer sur la parcelle
-                                            if (!modePolygoneActif) {
-                                                if (parcelle.polygonPoints.isNotEmpty()) {
-                                                    // Calculer la boîte englobante du polygone
-                                                    var minLat = Double.MAX_VALUE
-                                                    var maxLat = Double.MIN_VALUE
-                                                    var minLon = Double.MAX_VALUE
-                                                    var maxLon = Double.MIN_VALUE
-                                                    
-                                                    parcelle.polygonPoints.forEach { point ->
-                                                        minLat = minOf(minLat, point.latitude)
-                                                        maxLat = maxOf(maxLat, point.latitude)
-                                                        minLon = minOf(minLon, point.longitude)
-                                                        maxLon = maxOf(maxLon, point.longitude)
-                                                    }
-                                                    
-                                                    // Ajouter une marge de 10%
-                                                    val latMargin = (maxLat - minLat) * 0.9
-                                                    val lonMargin = (maxLon - minLon) * 0.9
-
-                                                    val boundingBox = org.osmdroid.util.BoundingBox(
-                                                        maxLat + latMargin,
-                                                        maxLon + lonMargin,
-                                                        minLat - latMargin,
-                                                        minLon - lonMargin
-                                                    )
-                                                    mapView.zoomToBoundingBox(boundingBox, true, 15)
-                                                } else {
-                                                    // Pour une parcelle avec un seul point
-                                                    mapView.controller.animateTo(
-                                                        GeoPoint(parcelle.latitude, parcelle.longitude),
-                                                        17.0,
-                                                        500L
-                                                    )
-                                                }
-                                            }
-                                        },
-                                        onDoubleTap = {
-                                            // Double clic : ouvrir le dialogue de modification
-                                            if (!modePolygoneActif) {
-                                                parcelleToEdit = parcelle
-                                                newParcelle = ParcelleInfo(
-                                                    name = parcelle.name,
-                                                    surface = parcelle.surface.toString(),
-                                                    cepage = parcelle.cepage,
-                                                    latitude = parcelle.latitude,
-                                                    longitude = parcelle.longitude
-                                                )
-                                                selectedLatitude = parcelle.latitude
-                                                selectedLongitude = parcelle.longitude
-                                                
-                                                isEditingParcelle = true
-                                                showParcelleDialog = true
-                                            }
-                                        }
-                                    )
-                                },
-                            color = if (isPressed) 
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
-                            else 
-                                MaterialTheme.colorScheme.surface,
-                            tonalElevation = elevation,
-                            shadowElevation = elevation
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    .fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    modifier = Modifier.weight(1f),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = parcelle.name,
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                    Text(
-                                        text = "•",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "${parcelle.surface} ha",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "•",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = parcelle.cepage,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { 
-                                        if (!modePolygoneActif) {
-                                            deleteParcelle(parcelle)
-                                        }
-                                    },
-                                    modifier = Modifier.size(20.dp),
-                                    enabled = !modePolygoneActif
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Supprimer",
-                                        tint = if (modePolygoneActif) 
-                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                                        else 
-                                            MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                        var showDeleteConfirmation by remember { mutableStateOf(false) }
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            initialValue = SwipeToDismissBoxValue.Settled,
+                            positionalThreshold = { it * 0.5f },
+                            confirmValueChange = { dismissValue ->
+                                if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                                    showDeleteConfirmation = true
+                                    false
+                                } else {
+                                    false
                                 }
                             }
+                        )
+                        val coroutineScope = rememberCoroutineScope()
+
+                        if (showDeleteConfirmation) {
+                            AlertDialog(
+                                onDismissRequest = { 
+                                    showDeleteConfirmation = false
+                                    coroutineScope.launch {
+                                        dismissState.reset()
+                                    }
+                                },
+                                title = { Text("Confirmer la suppression") },
+                                text = { Text("Voulez-vous vraiment supprimer la parcelle \"${parcelle.name}\" ?") },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            showDeleteConfirmation = false
+                                            deleteParcelle(parcelle)
+                                            coroutineScope.launch {
+                                                dismissState.reset()
+                                            }
+                                        }
+                                    ) {
+                                        Text("Supprimer")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(
+                                        onClick = { 
+                                            showDeleteConfirmation = false
+                                            coroutineScope.launch {
+                                                dismissState.reset()
+                                            }
+                                        }
+                                    ) {
+                                        Text("Annuler")
+                                    }
+                                }
+                            )
                         }
+
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            backgroundContent = {
+                                val color = when (dismissState.targetValue) {
+                                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.surface
+                                }
+                                val alignment = Alignment.CenterEnd
+                                val icon = Icons.Default.Delete
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(color)
+                                        .padding(horizontal = 20.dp),
+                                    contentAlignment = alignment
+                                ) {
+                                    Icon(
+                                        icon,
+                                        contentDescription = "Supprimer",
+                                        tint = MaterialTheme.colorScheme.onError
+                                    )
+                                }
+                            },
+                            content = {
+                                var isPressed by remember { mutableStateOf(false) }
+                                val scale by animateFloatAsState(
+                                    targetValue = if (isPressed) 0.95f else 1f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessLow
+                                    ),
+                                    label = "scale"
+                                )
+                                val elevation by animateDpAsState(
+                                    targetValue = if (isPressed) 0.dp else 2.dp,
+                                    animationSpec = tween(durationMillis = 100),
+                                    label = "elevation"
+                                )
+
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .scale(scale)
+                                        .pointerInput(parcelle) {
+                                            detectTapGestures(
+                                                onPress = {
+                                                    isPressed = true
+                                                    tryAwaitRelease()
+                                                    isPressed = false
+                                                },
+                                                onTap = {
+                                                    // Simple clic : centrer sur la parcelle
+                                                    if (!modePolygoneActif) {
+                                                        if (parcelle.polygonPoints.isNotEmpty()) {
+                                                            // Calculer la boîte englobante du polygone
+                                                            var minLat = Double.MAX_VALUE
+                                                            var maxLat = Double.MIN_VALUE
+                                                            var minLon = Double.MAX_VALUE
+                                                            var maxLon = Double.MIN_VALUE
+                                                            
+                                                            parcelle.polygonPoints.forEach { point ->
+                                                                minLat = minOf(minLat, point.latitude)
+                                                                maxLat = maxOf(maxLat, point.latitude)
+                                                                minLon = minOf(minLon, point.longitude)
+                                                                maxLon = maxOf(maxLon, point.longitude)
+                                                            }
+                                                            
+                                                            // Ajouter une marge de 10%
+                                                            val latMargin = (maxLat - minLat) * 0.9
+                                                            val lonMargin = (maxLon - minLon) * 0.9
+
+                                                            val boundingBox = org.osmdroid.util.BoundingBox(
+                                                                maxLat + latMargin,
+                                                                maxLon + lonMargin,
+                                                                minLat - latMargin,
+                                                                minLon - lonMargin
+                                                            )
+                                                            mapView.zoomToBoundingBox(boundingBox, true, 15)
+                                                        } else {
+                                                            // Pour une parcelle avec un seul point
+                                                            mapView.controller.animateTo(
+                                                                GeoPoint(parcelle.latitude, parcelle.longitude),
+                                                                17.0,
+                                                                500L
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                onDoubleTap = {
+                                                    // Double clic : ouvrir le dialogue de modification
+                                                    if (!modePolygoneActif) {
+                                                        parcelleToEdit = parcelle
+                                                        newParcelle = ParcelleInfo(
+                                                            name = parcelle.name,
+                                                            surface = parcelle.surface.toString(),
+                                                            cepage = parcelle.cepage,
+                                                            latitude = parcelle.latitude,
+                                                            longitude = parcelle.longitude
+                                                        )
+                                                        selectedLatitude = parcelle.latitude
+                                                        selectedLongitude = parcelle.longitude
+                                                        
+                                                        isEditingParcelle = true
+                                                        showParcelleDialog = true
+                                                    }
+                                                }
+                                            )
+                                        },
+                                    color = if (isPressed) 
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+                                    else 
+                                        MaterialTheme.colorScheme.surface,
+                                    tonalElevation = elevation,
+                                    shadowElevation = elevation
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                            .fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.weight(1f),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = parcelle.name,
+                                                style = MaterialTheme.typography.titleMedium
+                                            )
+                                            Text(
+                                                text = "•",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = "${parcelle.surface} ha",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = "•",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = parcelle.cepage,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        // Suppression du IconButton ici
+                                    }
+                                }
+                            },
+                            enableDismissFromEndToStart = true,
+                            enableDismissFromStartToEnd = false
+                        )
                     }
                 }
             }
