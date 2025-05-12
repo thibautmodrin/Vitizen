@@ -1628,7 +1628,7 @@ fun ParcellesBox(
                     // Pour une parcelle avec un seul point, centrer directement dessus
                     mapView.controller.animateTo(
                         GeoPoint(parcelle.latitude, parcelle.longitude),
-                        5.0,// Niveau de zoom
+                        17.0,// Niveau de zoom
                         1500L // Durée de l'animation en ms
 
                     )
