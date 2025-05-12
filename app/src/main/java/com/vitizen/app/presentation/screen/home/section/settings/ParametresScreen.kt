@@ -30,6 +30,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.view.MotionEvent
 import android.util.Log
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -48,9 +50,15 @@ import android.graphics.Color as AndroidColor
 import kotlin.math.abs
 import java.util.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.input.pointer.pointerInput
 import com.vitizen.app.R
 import org.osmdroid.api.IGeoPoint
 import kotlin.math.sqrt
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.scale
 
 data class TabItem(
     val title: String,
@@ -1544,28 +1552,96 @@ fun ParcellesBox(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(parcelles) { parcelle ->
+                        var isPressed by remember { mutableStateOf(false) }
+                        val scale by animateFloatAsState(
+                            targetValue = if (isPressed) 0.95f else 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            ),
+                            label = "scale"
+                        )
+                        val elevation by animateDpAsState(
+                            targetValue = if (isPressed) 0.dp else 2.dp,
+                            animationSpec = tween(durationMillis = 100),
+                            label = "elevation"
+                        )
+
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { 
-                                    if (!modePolygoneActif) {
-                                    parcelleToEdit = parcelle
-                                    newParcelle = ParcelleInfo(
-                                        name = parcelle.name,
-                                        surface = parcelle.surface.toString(),
-                                        cepage = parcelle.cepage,
-                                        latitude = parcelle.latitude,
-                                        longitude = parcelle.longitude
+                                .scale(scale)
+                                .pointerInput(parcelle) {
+                                    detectTapGestures(
+                                        onPress = {
+                                            isPressed = true
+                                            tryAwaitRelease()
+                                            isPressed = false
+                                        },
+                                        onTap = {
+                                            // Simple clic : centrer sur la parcelle
+                                            if (!modePolygoneActif) {
+                                                if (parcelle.polygonPoints.isNotEmpty()) {
+                                                    // Calculer la boîte englobante du polygone
+                                                    var minLat = Double.MAX_VALUE
+                                                    var maxLat = Double.MIN_VALUE
+                                                    var minLon = Double.MAX_VALUE
+                                                    var maxLon = Double.MIN_VALUE
+                                                    
+                                                    parcelle.polygonPoints.forEach { point ->
+                                                        minLat = minOf(minLat, point.latitude)
+                                                        maxLat = maxOf(maxLat, point.latitude)
+                                                        minLon = minOf(minLon, point.longitude)
+                                                        maxLon = maxOf(maxLon, point.longitude)
+                                                    }
+                                                    
+                                                    // Ajouter une marge de 10%
+                                                    val latMargin = (maxLat - minLat) * 0.1
+                                                    val lonMargin = (maxLon - minLon) * 0.1
+
+                                                    val boundingBox = org.osmdroid.util.BoundingBox(
+                                                        maxLat + latMargin,
+                                                        maxLon + lonMargin,
+                                                        minLat - latMargin,
+                                                        minLon - lonMargin
+                                                    )
+                                                    mapView.zoomToBoundingBox(boundingBox, true, 15)
+                                                } else {
+                                                    // Pour une parcelle avec un seul point
+                                                    mapView.controller.animateTo(
+                                                        GeoPoint(parcelle.latitude, parcelle.longitude),
+                                                        17.0,
+                                                        500L
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        onDoubleTap = {
+                                            // Double clic : ouvrir le dialogue de modification
+                                            if (!modePolygoneActif) {
+                                                parcelleToEdit = parcelle
+                                                newParcelle = ParcelleInfo(
+                                                    name = parcelle.name,
+                                                    surface = parcelle.surface.toString(),
+                                                    cepage = parcelle.cepage,
+                                                    latitude = parcelle.latitude,
+                                                    longitude = parcelle.longitude
+                                                )
+                                                selectedLatitude = parcelle.latitude
+                                                selectedLongitude = parcelle.longitude
+                                                
+                                                isEditingParcelle = true
+                                                showParcelleDialog = true
+                                            }
+                                        }
                                     )
-                                    selectedLatitude = parcelle.latitude
-                                    selectedLongitude = parcelle.longitude
-                                        
-                                    isEditingParcelle = true
-                                    showParcelleDialog = true
-                                    }
                                 },
-                            color = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 2.dp
+                            color = if (isPressed) 
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+                            else 
+                                MaterialTheme.colorScheme.surface,
+                            tonalElevation = elevation,
+                            shadowElevation = elevation
                         ) {
                             Row(
                                 modifier = Modifier
