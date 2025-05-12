@@ -30,7 +30,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.view.MotionEvent
 import android.util.Log
-import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
@@ -54,19 +53,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.vitizen.app.R
 import org.osmdroid.api.IGeoPoint
 import kotlin.math.sqrt
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.draw.scale
-import androidx.compose.material3.SwipeToDismiss
-import androidx.compose.material3.DismissDirection
-import androidx.compose.material3.DismissValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.BorderStroke as FoundationBorderStroke
 
 data class TabItem(
     val title: String,
@@ -421,6 +415,8 @@ fun ParcellesBox(
 
     // Ajouter l'état pour stocker les polygones des parcelles
     var parcellePolygons by remember { mutableStateOf(mapOf<String, Polygon>()) }
+
+    var selectedParcelleId by remember { mutableStateOf<String?>(null) }
 
     // Fonctions de gestion des polygones
     fun updatePolygon(mapView: MapView) {
@@ -892,6 +888,9 @@ fun ParcellesBox(
                                     override fun onDoubleTap(e: MotionEvent, mapView: MapView): Boolean {
                                         val parcelles = viewModel.parcelles.value
                                         if (parcelles.isNotEmpty()) {
+                                            // Réinitialiser la sélection de la carte
+                                            selectedParcelleId = null
+                                            
                                             var minLat = Double.MAX_VALUE
                                             var maxLat = Double.MIN_VALUE
                                             var minLon = Double.MAX_VALUE
@@ -1639,24 +1638,10 @@ fun ParcellesBox(
                             },
                             content = {
                                 var isPressed by remember { mutableStateOf(false) }
-                                val scale by animateFloatAsState(
-                                    targetValue = if (isPressed) 0.95f else 1f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessLow
-                                    ),
-                                    label = "scale"
-                                )
-                                val elevation by animateDpAsState(
-                                    targetValue = if (isPressed) 0.dp else 2.dp,
-                                    animationSpec = tween(durationMillis = 100),
-                                    label = "elevation"
-                                )
 
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .scale(scale)
                                         .pointerInput(parcelle) {
                                             detectTapGestures(
                                                 onPress = {
@@ -1665,8 +1650,9 @@ fun ParcellesBox(
                                                     isPressed = false
                                                 },
                                                 onTap = {
-                                                    // Simple clic : centrer sur la parcelle
+                                                    // Simple clic : centrer sur la parcelle et mettre à jour la sélection
                                                     if (!modePolygoneActif) {
+                                                        selectedParcelleId = parcelle.id
                                                         if (parcelle.polygonPoints.isNotEmpty()) {
                                                             // Calculer la boîte englobante du polygone
                                                             var minLat = Double.MAX_VALUE
@@ -1722,12 +1708,14 @@ fun ParcellesBox(
                                                 }
                                             )
                                         },
-                                    color = if (isPressed) 
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
-                                    else 
-                                        MaterialTheme.colorScheme.surface,
-                                    tonalElevation = elevation,
-                                    shadowElevation = elevation
+                                    color = MaterialTheme.colorScheme.surface,
+                                    tonalElevation = 2.dp,
+                                    shadowElevation = 2.dp,
+                                    border = if (selectedParcelleId == parcelle.id)
+                                        FoundationBorderStroke(2.dp, MaterialTheme.colorScheme.onSurfaceVariant)
+                                    else
+                                        null,
+                                    shape = MaterialTheme.shapes.medium
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -1743,7 +1731,8 @@ fun ParcellesBox(
                                         ) {
                                             Text(
                                                 text = parcelle.name,
-                                                style = MaterialTheme.typography.titleMedium
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
                                                 text = "•",
@@ -1766,7 +1755,6 @@ fun ParcellesBox(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
-                                        // Suppression du IconButton ici
                                     }
                                 }
                             },
