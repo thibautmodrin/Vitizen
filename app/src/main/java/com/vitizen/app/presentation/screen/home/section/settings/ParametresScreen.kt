@@ -507,7 +507,7 @@ fun ParcellesBox(
                 }
                 
                 Log.d("MapEvents", "Distance minimale au segment: $minSegmentDistance")
-                Log.d("MapEvents", "Index d'insertion: $insertIndex")
+                Log.d("MapEvents", "Index d'insertion choisi: $insertIndex")
                 
                 if (minSegmentDistance < segmentThreshold) {
                     Log.d("MapEvents", "Point trop proche d'un segment existant")
@@ -867,7 +867,55 @@ fun ParcellesBox(
                                 controller.setCenter(GeoPoint(selectedLatitude, selectedLongitude))
 
                                 // Configuration des contrôles de zoom
+                                setMultiTouchControls(true)
+                                setBuiltInZoomControls(false)
                                 zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
+
+                                // Gestion du double-clic pour centrer sur toutes les parcelles
+                                overlays.add(object : Overlay() {
+                                    override fun onDoubleTap(e: MotionEvent, mapView: MapView): Boolean {
+                                        val parcelles = viewModel.parcelles.value
+                                        if (parcelles.isNotEmpty()) {
+                                            var minLat = Double.MAX_VALUE
+                                            var maxLat = Double.MIN_VALUE
+                                            var minLon = Double.MAX_VALUE
+                                            var maxLon = Double.MIN_VALUE
+                                            
+                                            parcelles.forEach { parcelle ->
+                                                if (parcelle.polygonPoints.isNotEmpty()) {
+                                                    // Pour les parcelles avec polygone
+                                                    parcelle.polygonPoints.forEach { point ->
+                                                        minLat = minOf(minLat, point.latitude)
+                                                        maxLat = maxOf(maxLat, point.latitude)
+                                                        minLon = minOf(minLon, point.longitude)
+                                                        maxLon = maxOf(maxLon, point.longitude)
+                                                    }
+                                                } else {
+                                                    // Pour les parcelles avec un seul point
+                                                    minLat = minOf(minLat, parcelle.latitude)
+                                                    maxLat = maxOf(maxLat, parcelle.latitude)
+                                                    minLon = minOf(minLon, parcelle.longitude)
+                                                    maxLon = maxOf(maxLon, parcelle.longitude)
+                                                }
+                                            }
+                                            
+                                            // Ajouter une marge de 10%
+                                            val latMargin = (maxLat - minLat) * 0.1
+                                            val lonMargin = (maxLon - minLon) * 0.1
+                                            
+                                            val boundingBox = org.osmdroid.util.BoundingBox(
+                                                maxLat + latMargin,
+                                                maxLon + lonMargin,
+                                                minLat - latMargin,
+                                                minLon - lonMargin
+                                            )
+                                            
+                                            // Animer le zoom vers la boîte englobante
+                                            mapView.zoomToBoundingBox(boundingBox, true, 15)
+                                        }
+                                        return true
+                                    }
+                                })
 
                                 // Fixer l'orientation vers le nord
                                 setMapOrientation(0f)
@@ -1154,11 +1202,6 @@ fun ParcellesBox(
                                         
                                     override fun onScroll(event: MotionEvent?, event2: MotionEvent?, distanceX: Float, distanceY: Float, mapView: MapView?): Boolean {
                                         Log.d("MapEvents", "Scroll: dx=$distanceX, dy=$distanceY")
-                                        return false
-                                    }
-
-                                    override fun onDoubleTap(e: MotionEvent, mapView: MapView): Boolean {
-                                        Log.d("MapEvents", "Double tap: x=${e.x}, y=${e.y}")
                                         return false
                                     }
 
