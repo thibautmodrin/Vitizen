@@ -70,9 +70,9 @@ data class PolygonPoint(
 )
 
 // Constantes de base pour la précision de détection
-private const val BASE_POINT_DETECTION_THRESHOLD = 50.0  // Distance en pixels pour détecter un point existant
+private const val BASE_POINT_DETECTION_THRESHOLD = 30  // Distance en pixels pour détecter un point existant
 private const val BASE_SEGMENT_DETECTION_THRESHOLD = 0.0001  // Distance en degrés pour la détection de segments
-private const val BASE_POLYGON_CLOSURE_THRESHOLD = 50.0  // Distance en pixels pour fermer le polygone
+private const val BASE_POLYGON_CLOSURE_THRESHOLD = 100.0  // Distance en pixels pour fermer le polygone
 
 // Fonction pour calculer les seuils en fonction du zoom
 private fun calculateThresholds(mapView: MapView): Triple<Double, Double, Double> {
@@ -817,7 +817,7 @@ fun ParcellesBox(
                                 isPolygonClosed = false
                             } else {
                                 // Changer l'icône du marqueur en gris après validation
-                                selectedMarker?.let { marker ->
+                                selectedMarker?.let { _ ->
                                     //  marker.icon = ContextCompat.getDrawable(context, R.drawable.ic_marker_gray)
                                     mapView.invalidate()
                                 }
