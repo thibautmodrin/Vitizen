@@ -1608,29 +1608,22 @@ fun ParcellesBox(
                     }
                     
                     // Ajouter une marge de 10%
-                    val latMargin = (maxLat - minLat) * 0.1
-                    val lonMargin = (maxLon - minLon) * 0.1
-                    
-                    // Centrer la carte sur le polygone avec la marge
-                    mapView.controller.animateTo(
-                        GeoPoint(
-                            (minLat + maxLat) / 2,
-                            (minLon + maxLon) / 2
-                        )
+                    val latMargin = (maxLat - minLat) * 1.7
+                    val lonMargin = (maxLon - minLon) * 1.7
+
+                    val boundingBox = org.osmdroid.util.BoundingBox(
+                        maxLat + latMargin,
+                        maxLon + lonMargin,
+                        minLat - latMargin,
+                        minLon - lonMargin
                     )
-                    
-                    // Ajuster le zoom pour voir tout le polygone
-                    mapView.controller.zoomToSpan(
-                        maxLat - minLat + latMargin * 2,
-                        maxLon - minLon + lonMargin * 2
-                    )
+                    mapView.zoomToBoundingBox(boundingBox, true)
                 } else {
                     // Pour une parcelle avec un seul point, centrer directement dessus
                     mapView.controller.animateTo(
                         GeoPoint(parcelle.latitude, parcelle.longitude),
                         17.0,// Niveau de zoom
                         1500L // Durée de l'animation en ms
-
                     )
                 }
                 
