@@ -1596,8 +1596,8 @@ fun ParcellesBox(
                                                     }
                                                     
                                                     // Ajouter une marge de 10%
-                                                    val latMargin = (maxLat - minLat) * 0.1
-                                                    val lonMargin = (maxLon - minLon) * 0.1
+                                                    val latMargin = (maxLat - minLat) * 0.9
+                                                    val lonMargin = (maxLon - minLon) * 0.9
 
                                                     val boundingBox = org.osmdroid.util.BoundingBox(
                                                         maxLat + latMargin,
