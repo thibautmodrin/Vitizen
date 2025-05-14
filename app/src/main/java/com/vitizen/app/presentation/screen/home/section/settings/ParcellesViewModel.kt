@@ -51,6 +51,10 @@ class ParcellesViewModel @Inject constructor(
     private val _markerPosition = MutableStateFlow<GeoPoint?>(null)
     val markerPosition: StateFlow<GeoPoint?> = _markerPosition.asStateFlow()
     
+    // État pour les marqueurs permanents associés aux parcelles
+    private val _permanentMarkers = MutableStateFlow<Map<String, GeoPoint>>(emptyMap())
+    val permanentMarkers: StateFlow<Map<String, GeoPoint>> = _permanentMarkers.asStateFlow()
+    
     // État pour indiquer si les marqueurs doivent être retirés
     private val _shouldClearMarkers = MutableStateFlow(false)
     val shouldClearMarkers: StateFlow<Boolean> = _shouldClearMarkers.asStateFlow()
@@ -110,6 +114,22 @@ class ParcellesViewModel @Inject constructor(
     fun markersCleared() {
         _shouldClearMarkers.value = false
     }
+    
+    // Désactive le mode point et conserve le marqueur
+    fun finishPointMode(parcelleId: String, position: GeoPoint) {
+        // Désactiver le mode point
+        _isPointMode.value = false
+        
+        // Ajouter le marqueur aux marqueurs permanents
+        val updatedMarkers = _permanentMarkers.value.toMutableMap()
+        updatedMarkers[parcelleId] = position
+        _permanentMarkers.value = updatedMarkers
+        
+        // Réinitialiser le marqueur temporaire
+        _markerPosition.value = null
+        
+        Log.d("ParcellesViewModel", "Mode point terminé, marqueur permanent ajouté pour la parcelle $parcelleId")
+    }
 
     private fun loadParcelles() {
         viewModelScope.launch {
@@ -118,6 +138,13 @@ class ParcellesViewModel @Inject constructor(
                 parcelleRepository.getAllParcelles().collect { parcellesList ->
                     Log.d("ParcellesViewModel", "Parcelles reçues: ${parcellesList.size}")
                     _parcelles.value = parcellesList
+                    
+                    // Mettre à jour les marqueurs permanents
+                    val markerMap = mutableMapOf<String, GeoPoint>()
+                    parcellesList.forEach { parcelle ->
+                        markerMap[parcelle.id] = GeoPoint(parcelle.latitude, parcelle.longitude)
+                    }
+                    _permanentMarkers.value = markerMap
                 }
             } catch (e: Exception) {
                 Log.e("ParcellesViewModel", "Erreur lors du chargement des parcelles", e)
@@ -152,6 +179,12 @@ class ParcellesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 parcelleRepository.deleteParcelle(parcelle)
+                
+                // Supprimer le marqueur permanent associé
+                val updatedMarkers = _permanentMarkers.value.toMutableMap()
+                updatedMarkers.remove(parcelle.id)
+                _permanentMarkers.value = updatedMarkers
+                
                 Log.d("ParcellesViewModel", "Parcelle supprimée avec succès")
             } catch (e: Exception) {
                 Log.e("ParcellesViewModel", "Erreur lors de la suppression de la parcelle", e)
@@ -163,6 +196,12 @@ class ParcellesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 parcelleRepository.addParcelle(parcelle)
+                
+                // Si nous sommes en mode point et qu'un marqueur existe, l'associer à la parcelle
+                if (_isPointMode.value && _markerPosition.value != null) {
+                    finishPointMode(parcelle.id, _markerPosition.value!!)
+                }
+                
                 Log.d("ParcellesViewModel", "Parcelle ajoutée avec succès")
             } catch (e: Exception) {
                 Log.e("ParcellesViewModel", "Erreur lors de l'ajout de la parcelle", e)
@@ -174,6 +213,12 @@ class ParcellesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 parcelleRepository.updateParcelle(parcelle)
+                
+                // Mettre à jour le marqueur permanent
+                val updatedMarkers = _permanentMarkers.value.toMutableMap()
+                updatedMarkers[parcelle.id] = GeoPoint(parcelle.latitude, parcelle.longitude)
+                _permanentMarkers.value = updatedMarkers
+                
                 Log.d("ParcellesViewModel", "Parcelle mise à jour avec succès")
             } catch (e: Exception) {
                 Log.e("ParcellesViewModel", "Erreur lors de la mise à jour de la parcelle", e)

@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -36,7 +38,10 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.MapEventsOverlay
 import androidx.core.content.ContextCompat
 import com.vitizen.app.R
+import java.util.UUID
 
+// Constante pour identifier le marqueur temporaire
+private const val TEMPORARY_MARKER_ID = "temp_marker"
 
 /**
  * Composant principal pour l'affichage et la gestion des parcelles
@@ -50,6 +55,34 @@ fun ParcellesBox(
     val lifecycleOwner = LocalLifecycleOwner.current
     val mapView = rememberMapViewWithLifecycle(lifecycleOwner)
     
+    // État pour le formulaire d'ajout
+    var showAddParcelleDialog by remember { mutableStateOf(false) }
+    var parcelleName by remember { mutableStateOf("") }
+    var parcelleSurface by remember { mutableStateOf("") }
+    var parcelleCepage by remember { mutableStateOf("") }
+    var parcelleTypeConduite by remember { mutableStateOf("") }
+    var parcelleLargeur by remember { mutableStateOf("") }
+    var parcelleHauteur by remember { mutableStateOf("") }
+    
+    // Validation du formulaire
+    val isFormValid = parcelleName.isNotBlank() && 
+                      parcelleSurface.isNotBlank() && 
+                      parcelleCepage.isNotBlank() &&
+                      parcelleTypeConduite.isNotBlank() &&
+                      parcelleLargeur.isNotBlank() &&
+                      parcelleHauteur.isNotBlank()
+
+    // Fonction pour réinitialiser le formulaire
+    fun resetForm() {
+        parcelleName = ""
+        parcelleSurface = ""
+        parcelleCepage = ""
+        parcelleTypeConduite = ""
+        parcelleLargeur = ""
+        parcelleHauteur = ""
+        showAddParcelleDialog = false
+    }
+    
     // Observation des états du ViewModel
     val parcelles by viewModel.parcelles.collectAsState()
     val selectedParcelle by viewModel.selectedParcelle.collectAsState()
@@ -57,46 +90,101 @@ fun ParcellesBox(
     val isPolygonMode by viewModel.isPolygonMode.collectAsState()
     val markerPosition by viewModel.markerPosition.collectAsState()
     val shouldClearMarkers by viewModel.shouldClearMarkers.collectAsState()
+    val permanentMarkers by viewModel.permanentMarkers.collectAsState()
     
-    // Effet pour gérer les marqueurs en suivant les instructions du ViewModel
+    // Effet pour gérer le marqueur temporaire
     LaunchedEffect(markerPosition, shouldClearMarkers) {
         try {
-            // Nettoyer les marqueurs si demandé
+            // Nettoyer les marqueurs temporaires si demandé
             if (shouldClearMarkers) {
                 mapView.overlays
                     .filterIsInstance<Marker>()
-                    .filter { it.id == "temp_marker" }
+                    .filter { it.id == TEMPORARY_MARKER_ID }
                     .forEach { mapView.overlays.remove(it) }
                 
                 // Informer le ViewModel que les marqueurs ont été nettoyés
                 viewModel.markersCleared()
             }
             
-            // Ajouter le marqueur si une position est définie
+            // Ajouter le marqueur temporaire si une position est définie
             markerPosition?.let { position ->
-                val marker = Marker(mapView)
-                marker.id = "temp_marker"
-                marker.position = position
-                marker.icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)
-                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                // Supprimer tout marqueur temporaire existant pour éviter les doublons
+                mapView.overlays
+                    .filterIsInstance<Marker>()
+                    .filter { it.id == TEMPORARY_MARKER_ID }
+                    .forEach { mapView.overlays.remove(it) }
                 
-                // Désactiver l'infoview lorsqu'on clique sur le marqueur
-                marker.setOnMarkerClickListener { _, _ -> 
-                    true // Retourne true pour indiquer que l'événement a été géré
+                // Créer un nouveau marqueur temporaire avec l'icône ROUGE
+                val icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)
+                // S'assurer que l'icône ne reçoit aucune teinte
+                icon?.clearColorFilter()
+                
+                val marker = Marker(mapView).apply {
+                    id = TEMPORARY_MARKER_ID
+                    this.position = position
+                    this.icon = icon
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    
+                    // Désactiver l'infoview
+                    title = null
+                    snippet = null
+                    setInfoWindow(null)
+                    
+                    // Désactiver le comportement par défaut du clic
+                    setOnMarkerClickListener { _, _ -> true }
                 }
                 
-                // Désactiver le texte et l'infowindow
-                marker.title = null
-                marker.snippet = null
-                marker.setInfoWindow(null)
+                Log.d("ParcellesBox", "Ajout d'un marqueur temporaire ROUGE à la position: ${position.latitude}, ${position.longitude}")
+                mapView.overlays.add(marker)
+                mapView.invalidate()
+            }
+        } catch (e: Exception) {
+            Log.e("ParcellesBox", "Erreur lors de la gestion du marqueur temporaire: ${e.message}")
+        }
+    }
+    
+    // Effet pour gérer les marqueurs permanents
+    LaunchedEffect(permanentMarkers) {
+        try {
+            // Supprimer tous les marqueurs permanents existants
+            val markersToRemove = mapView.overlays
+                .filterIsInstance<Marker>()
+                .filter { it.id != null && it.id != TEMPORARY_MARKER_ID }
                 
+            markersToRemove.forEach { marker ->
+                mapView.overlays.remove(marker)
+            }
+            
+            // Ajouter les marqueurs permanents pour chaque parcelle avec une teinte GRISE
+            permanentMarkers.forEach { (parcelleId, position) ->
+                // Créer un drawable pour chaque marqueur pour éviter le partage de référence
+                val grayIcon = ContextCompat.getDrawable(context, R.drawable.ic_marker)?.mutate()
+                grayIcon?.setTint(android.graphics.Color.GRAY)
+                
+                val marker = Marker(mapView).apply {
+                    id = "permanent_$parcelleId"
+                    this.position = position
+                    this.icon = grayIcon
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    
+                    // Configuration du clic sur le marqueur permanent
+                    setOnMarkerClickListener { _, _ ->
+                        // Trouver la parcelle correspondante
+                        val parcelle = parcelles.find { it.id == parcelleId }
+                        parcelle?.let {
+                            viewModel.selectParcelle(it)
+                        }
+                        true
+                    }
+                }
+                
+                Log.d("ParcellesBox", "Ajout d'un marqueur permanent GRIS pour la parcelle: $parcelleId")
                 mapView.overlays.add(marker)
             }
             
-            // Rafraîchir la carte
             mapView.invalidate()
         } catch (e: Exception) {
-            Log.e("ParcellesBox", "Erreur lors de la gestion des marqueurs: ${e.message}")
+            Log.e("ParcellesBox", "Erreur lors de la gestion des marqueurs permanents: ${e.message}")
         }
     }
 
@@ -104,9 +192,12 @@ fun ParcellesBox(
     LaunchedEffect(isPointMode, isPolygonMode, mapView) {
         try {
             // Supprimer les overlays d'événements précédents
-            mapView.overlays
+            val eventsToRemove = mapView.overlays
                 .filterIsInstance<MapEventsOverlay>()
-                .forEach { mapView.overlays.remove(it) }
+            
+            eventsToRemove.forEach { overlay ->
+                mapView.overlays.remove(overlay)
+            }
             
             // Ajouter les gestionnaires d'événements si un mode est actif
             if (isPointMode || isPolygonMode) {
@@ -128,12 +219,11 @@ fun ParcellesBox(
                     }
                 }
                 
-                // Ajouter l'overlay d'événements à la carte
+                // Ajouter l'overlay d'événements à la carte (index 0 pour priorité)
                 val mapEventsOverlay = MapEventsOverlay(mapEventsReceiver)
                 mapView.overlays.add(0, mapEventsOverlay)
             }
             
-            // Rafraîchir la carte
             mapView.invalidate()
         } catch (e: Exception) {
             Log.e("ParcellesBox", "Erreur lors de la gestion des événements: ${e.message}")
@@ -200,15 +290,10 @@ fun ParcellesBox(
                 }
             }
             
-            // Bouton d'ajout en bas à droite qui apparaît uniquement lorsqu'un marqueur est présent
+            // Bouton d'ajout en bas à gauche qui apparaît uniquement lorsqu'un marqueur est présent
             if (markerPosition != null) {
                 IconButton(
-                    onClick = { 
-                        // Créer une parcelle à partir du point marqué
-                        markerPosition?.let { position ->
-                            onNavigateToForm("parcelle_form/new?lat=${position.latitude}&lon=${position.longitude}")
-                        }
-                    },
+                    onClick = { showAddParcelleDialog = true },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(16.dp)
@@ -235,6 +320,7 @@ fun ParcellesBox(
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(16.dp)
         ) {
+            // Afficher la liste des parcelles ou un message approprié selon l'état
             if (parcelles.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -263,7 +349,144 @@ fun ParcellesBox(
                     }
                 }
             }
+            
+            // Superposition qui bloque les interactions quand un mode d'édition est actif
+            if (isPointMode || isPolygonMode) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f))
+                        .clickable(enabled = false) { /* Bloquer les clics */ },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = if (isPointMode) "Mode point unique actif" else "Mode polygon actif",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Text(
+                            text = "Liste de parcelles désactivée",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         }
+    }
+    
+    // Dialog d'ajout de parcelle
+    if (showAddParcelleDialog) {
+        AlertDialog(
+            onDismissRequest = { resetForm() },
+            title = { Text("Nouvelle parcelle") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = parcelleName,
+                        onValueChange = { parcelleName = it },
+                        label = { Text("Nom") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    OutlinedTextField(
+                        value = parcelleSurface,
+                        onValueChange = { parcelleSurface = it },
+                        label = { Text("Surface (ha)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    OutlinedTextField(
+                        value = parcelleCepage,
+                        onValueChange = { parcelleCepage = it },
+                        label = { Text("Cépage") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    OutlinedTextField(
+                        value = parcelleTypeConduite,
+                        onValueChange = { parcelleTypeConduite = it },
+                        label = { Text("Type de conduite") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = parcelleLargeur,
+                            onValueChange = { parcelleLargeur = it },
+                            label = { Text("Largeur") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        
+                        OutlinedTextField(
+                            value = parcelleHauteur,
+                            onValueChange = { parcelleHauteur = it },
+                            label = { Text("Hauteur") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        markerPosition?.let { position ->
+                            // Créer une nouvelle parcelle avec les données du formulaire
+                            val newParcelle = Parcelle(
+                                id = UUID.randomUUID().toString(),
+                                name = parcelleName,
+                                surface = parcelleSurface.toDoubleOrNull() ?: 0.0,
+                                cepage = parcelleCepage,
+                                typeConduite = parcelleTypeConduite,
+                                largeur = parcelleLargeur.toDoubleOrNull() ?: 0.0,
+                                hauteur = parcelleHauteur.toDoubleOrNull() ?: 0.0,
+                                latitude = position.latitude,
+                                longitude = position.longitude,
+                                polygonPoints = emptyList()  // Point unique, pas de polygone
+                            )
+                            
+                            // Ajouter la parcelle via le ViewModel et terminer le mode point
+                            viewModel.addParcelle(newParcelle)
+                            
+                            // Réinitialiser le formulaire
+                            resetForm()
+                        }
+                    },
+                    enabled = isFormValid && markerPosition != null
+                ) {
+                    Text("Valider")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { resetForm() }) {
+                    Text("Annuler")
+                }
+            }
+        )
     }
 }
 
