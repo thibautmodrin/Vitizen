@@ -171,10 +171,9 @@ fun ParcellesBox(
                 val parcelle = parcellesList[0]
                 val position = GeoPoint(parcelle.latitude, parcelle.longitude)
                 
-                // Centrer sur ce point unique avec un zoom fixe approprié
-                mapView.controller.setZoom(15.0)
-                mapView.controller.setCenter(position)
-                Log.d("ParcellesBox", "Carte centrée sur la parcelle unique: ${parcelle.name}")
+                // Animer la transition vers le point avec un zoom approprié
+                mapView.controller.animateTo(position, 15.0, 1000L)
+                Log.d("ParcellesBox", "Carte centrée avec animation sur la parcelle unique: ${parcelle.name}")
                 return
             }
             
