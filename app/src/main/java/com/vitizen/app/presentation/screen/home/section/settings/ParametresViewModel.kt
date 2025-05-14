@@ -1,5 +1,6 @@
 package com.vitizen.app.presentation.screen.home.section.settings
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitizen.app.domain.model.InformationsGenerales
@@ -25,10 +26,8 @@ class ParametresViewModel @Inject constructor(
     private val parcelleRepository: IParcelleRepository
 ) : ViewModel() {
 
-
     private val _informationsGenerales = MutableStateFlow<List<InformationsGenerales>>(emptyList())
     val informationsGenerales: StateFlow<List<InformationsGenerales>> = _informationsGenerales.asStateFlow()
-
 
     private val _operateurs = MutableStateFlow<List<Operateur>>(emptyList())
     val operateurs: StateFlow<List<Operateur>> = _operateurs.asStateFlow()
@@ -51,7 +50,6 @@ class ParametresViewModel @Inject constructor(
                 _pulverisateurs.value = pulverisateurs
             }
         }
-        loadParcelles()
     }
 
     private fun loadInformationsGenerales() {
@@ -87,7 +85,6 @@ class ParametresViewModel @Inject constructor(
         }
     }
 
-
     fun addOperateur(
         nom: String,
         disponibleWeekend: Boolean,
@@ -102,7 +99,6 @@ class ParametresViewModel @Inject constructor(
                 materielMaitrise = materielMaitrise
             )
             operateurRepository.addOperateur(operateur)
-
         }
     }
 
@@ -232,33 +228,54 @@ class ParametresViewModel @Inject constructor(
         pulverisateurRepository.deletePulverisateur(pulverisateur)
     }
 
-    private fun loadParcelles() {
-        viewModelScope.launch {
-            parcelleRepository.getAllParcelles().collect { parcelles ->
-                _parcelles.value = parcelles
-            }
-        }
-    }
-
+    // Fonctions pour la gestion des parcelles
     fun addParcelle(parcelle: Parcelle) {
         viewModelScope.launch {
-            parcelleRepository.addParcelle(parcelle)
+            try {
+                parcelleRepository.addParcelle(parcelle)
+            } catch (e: Exception) {
+                // Gérer l'erreur si nécessaire
+                Log.e("ParametresViewModel", "Erreur lors de l'ajout de la parcelle", e)
+            }
         }
     }
 
     fun updateParcelle(parcelle: Parcelle) {
         viewModelScope.launch {
-            parcelleRepository.updateParcelle(parcelle)
+            try {
+                parcelleRepository.updateParcelle(parcelle)
+            } catch (e: Exception) {
+                // Gérer l'erreur si nécessaire
+                Log.e("ParametresViewModel", "Erreur lors de la mise à jour de la parcelle", e)
+            }
         }
     }
 
     fun deleteParcelle(parcelle: Parcelle) {
         viewModelScope.launch {
-            parcelleRepository.deleteParcelle(parcelle)
+            try {
+                parcelleRepository.deleteParcelle(parcelle)
+            } catch (e: Exception) {
+                // Gérer l'erreur si nécessaire
+                Log.e("ParametresViewModel", "Erreur lors de la suppression de la parcelle", e)
+            }
         }
     }
 
-    fun getParcelleById(id: String): Parcelle? {
-        return _parcelles.value.find { it.id == id }
+    suspend fun getParcelleById(id: String): Parcelle? {
+        return parcelleRepository.getParcelleById(id)
+    }
+
+    // Fonction pour obtenir une parcelle de manière asynchrone
+    fun getParcelleByIdAsync(id: String, onResult: (Parcelle?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val parcelle = getParcelleById(id)
+                onResult(parcelle)
+            } catch (e: Exception) {
+                Log.e("ParametresViewModel", "Erreur lors de la récupération de la parcelle", e)
+                onResult(null)
+            }
+        }
     }
 }

@@ -24,6 +24,10 @@ import com.vitizen.app.presentation.screen.home.section.settings.OperateurForm
 import com.vitizen.app.presentation.screen.home.section.settings.PulverisateurForm
 import com.vitizen.app.presentation.screen.home.section.settings.ParcelleForm
 import com.vitizen.app.presentation.screen.home.section.settings.ParcellesView
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import com.vitizen.app.domain.model.Parcelle
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -172,11 +176,19 @@ fun MainNavigation(
                 }
             )
         ) { backStackEntry ->
+            val parcelleState = remember { mutableStateOf<Parcelle?>(null) }
             val parcelleId = backStackEntry.arguments?.getString("parcelleId")
-            val parcelle = if (parcelleId != "new") parametresViewModel.getParcelleById(parcelleId!!) else null
+            
+            LaunchedEffect(parcelleId) {
+                if (parcelleId != "new") {
+                    parametresViewModel.getParcelleByIdAsync(parcelleId!!) { result ->
+                        parcelleState.value = result
+                    }
+                }
+            }
 
             ParcelleForm(
-                parcelle = parcelle,
+                parcelle = parcelleState.value,
                 onSave = { parcelle ->
                     if (parcelle.id.isEmpty()) {
                         parametresViewModel.addParcelle(parcelle)

@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+Always respond in french  
+N'oublie pas de verifier dans tous les fichiers du projets avant de proposer un changement de code ou une implémentation pour vérifier sa cohérence et que les fonctionnalités existantes ne disparaissent pas si cela n'est pas demandé.
+Le code doit toujours respecter la structure MVVM et cleancode.
+Assure toi que les état sont bien gérer en stateflow et harmonisé dans tous les fichiers.
+Verifie si il n'y a pas du code inutile après la nouvelle implémentations ou du code redondants.
+Les bonnes pratiques doivent toujours etre utilisé.
