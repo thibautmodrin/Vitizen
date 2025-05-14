@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -64,6 +65,14 @@ fun ParcellesBox(
     var parcelleLargeur by remember { mutableStateOf("") }
     var parcelleHauteur by remember { mutableStateOf("") }
     
+    // État pour le formulaire d'édition
+    var showEditParcelleDialog by remember { mutableStateOf(false) }
+    var parcelleToEdit by remember { mutableStateOf<Parcelle?>(null) }
+    
+    // État pour la confirmation de suppression
+    var parcelleToDelete by remember { mutableStateOf<Parcelle?>(null) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    
     // Validation du formulaire
     val isFormValid = parcelleName.isNotBlank() && 
                       parcelleSurface.isNotBlank() && 
@@ -81,6 +90,36 @@ fun ParcellesBox(
         parcelleLargeur = ""
         parcelleHauteur = ""
         showAddParcelleDialog = false
+        showEditParcelleDialog = false
+        parcelleToEdit = null
+    }
+    
+    // Fonction pour préparer le formulaire d'édition
+    fun prepareEditForm(parcelle: Parcelle) {
+        parcelleName = parcelle.name
+        parcelleSurface = parcelle.surface.toString()
+        parcelleCepage = parcelle.cepage
+        parcelleTypeConduite = parcelle.typeConduite
+        parcelleLargeur = parcelle.largeur.toString()
+        parcelleHauteur = parcelle.hauteur.toString()
+        parcelleToEdit = parcelle
+        showEditParcelleDialog = true
+    }
+    
+    // Fonction pour fermer toutes les infowindows ouvertes
+    fun closeAllInfoWindows() {
+        try {
+            // Parcourir tous les marqueurs et fermer leurs infowindows
+            mapView.overlays
+                .filterIsInstance<Marker>()
+                .forEach { marker ->
+                    marker.closeInfoWindow()
+                }
+            mapView.invalidate()
+            Log.d("ParcellesBox", "Toutes les infowindows ont été fermées")
+        } catch (e: Exception) {
+            Log.e("ParcellesBox", "Erreur lors de la fermeture des infowindows", e)
+        }
     }
     
     // Observation des états du ViewModel
@@ -91,6 +130,93 @@ fun ParcellesBox(
     val markerPosition by viewModel.markerPosition.collectAsState()
     val shouldClearMarkers by viewModel.shouldClearMarkers.collectAsState()
     val permanentMarkers by viewModel.permanentMarkers.collectAsState()
+    
+    // Fonction pour sélectionner une parcelle au clic sur la card
+    fun selectParcelleAndCenterMap(parcelle: Parcelle) {
+        viewModel.selectParcelle(parcelle)
+        // Fermer toutes les infowindows
+        closeAllInfoWindows()
+        // Créer un point à partir des coordonnées de la parcelle
+        val position = GeoPoint(parcelle.latitude, parcelle.longitude)
+        
+        try {
+            // Animer la transition vers le point avec un zoom approprié
+            mapView.controller.animateTo(position, 15.0, 1000L)
+            Log.d("ParcellesBox", "Centrage animé sur la parcelle: ${parcelle.name}")
+        } catch (e: Exception) {
+            // Fallback en cas d'erreur avec l'animation
+            Log.e("ParcellesBox", "Erreur lors de l'animation de la carte", e)
+            mapView.controller.setCenter(position)
+            mapView.controller.setZoom(15.0)
+        }
+    }
+    
+    // Fonction pour centrer la carte sur toutes les parcelles
+    fun centerOnAllParcelles() {
+        // Fermer toutes les infowindows
+        closeAllInfoWindows()
+        
+        val parcellesList = parcelles // Capture locale de la variable parcelles
+        
+        if (parcellesList.isEmpty()) {
+            // Si aucune parcelle, centrer sur Beaune
+            mapView.controller.setZoom(15.0)
+            mapView.controller.setCenter(GeoPoint(47.0242, 4.8386))
+            return
+        }
+        
+        try {
+            // Cas spécial: s'il n'y a qu'une seule parcelle
+            if (parcellesList.size == 1) {
+                val parcelle = parcellesList[0]
+                val position = GeoPoint(parcelle.latitude, parcelle.longitude)
+                
+                // Centrer sur ce point unique avec un zoom fixe approprié
+                mapView.controller.setZoom(15.0)
+                mapView.controller.setCenter(position)
+                Log.d("ParcellesBox", "Carte centrée sur la parcelle unique: ${parcelle.name}")
+                return
+            }
+            
+            // Pour plusieurs parcelles, calculer les limites (bounds)
+            var minLat = Double.MAX_VALUE
+            var maxLat = Double.MIN_VALUE
+            var minLon = Double.MAX_VALUE
+            var maxLon = Double.MIN_VALUE
+            
+            parcellesList.forEach { parcelle ->
+                minLat = minOf(minLat, parcelle.latitude)
+                maxLat = maxOf(maxLat, parcelle.latitude)
+                minLon = minOf(minLon, parcelle.longitude)
+                maxLon = maxOf(maxLon, parcelle.longitude)
+            }
+            
+            // Ajouter une marge (seulement pour plusieurs parcelles)
+            val latSpan = maxLat - minLat
+            val lonSpan = maxLon - minLon
+            val margin = 0.2 // 20% de marge
+            
+            minLat -= latSpan * margin
+            maxLat += latSpan * margin
+            minLon -= lonSpan * margin
+            maxLon += lonSpan * margin
+            
+            // Créer un rectangle de délimitation
+            val boundingBox = org.osmdroid.util.BoundingBox(
+                maxLat, maxLon, minLat, minLon
+            )
+            
+            // Animer la carte pour afficher toutes les parcelles
+            mapView.zoomToBoundingBox(boundingBox, true)
+            
+            Log.d("ParcellesBox", "Carte centrée sur ${parcellesList.size} parcelles: $boundingBox")
+        } catch (e: Exception) {
+            Log.e("ParcellesBox", "Erreur lors du centrage sur toutes les parcelles", e)
+            // En cas d'erreur, centrer sur Beaune
+            mapView.controller.setZoom(15.0)
+            mapView.controller.setCenter(GeoPoint(47.0242, 4.8386))
+        }
+    }
     
     // Effet pour gérer le marqueur temporaire
     LaunchedEffect(markerPosition, shouldClearMarkers) {
@@ -161,20 +287,31 @@ fun ParcellesBox(
                 val grayIcon = ContextCompat.getDrawable(context, R.drawable.ic_marker)?.mutate()
                 grayIcon?.setTint(android.graphics.Color.GRAY)
                 
+                // Trouver la parcelle correspondante
+                val parcelle = parcelles.find { it.id == parcelleId }
+                
                 val marker = Marker(mapView).apply {
                     id = "permanent_$parcelleId"
                     this.position = position
                     this.icon = grayIcon
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     
-                    // Configuration du clic sur le marqueur permanent
-                    setOnMarkerClickListener { _, _ ->
-                        // Trouver la parcelle correspondante
-                        val parcelle = parcelles.find { it.id == parcelleId }
-                        parcelle?.let {
+                    // Configurer l'infowindow avec les informations de la parcelle
+                    parcelle?.let {
+                        title = it.name
+                        snippet = "${it.surface} ha - ${it.cepage}"
+                        
+                        // Permettre d'afficher l'infowindow mais sélectionner quand même la parcelle
+                        setOnMarkerClickListener { marker, _ ->
+                            // Afficher l'infowindow
+                            marker.showInfoWindow()
+                            
+                            // Sélectionner la parcelle
                             viewModel.selectParcelle(it)
+                            
+                            // Retourner true pour indiquer que l'événement a été géré
+                            true
                         }
-                        true
                     }
                 }
                 
@@ -222,6 +359,23 @@ fun ParcellesBox(
                 // Ajouter l'overlay d'événements à la carte (index 0 pour priorité)
                 val mapEventsOverlay = MapEventsOverlay(mapEventsReceiver)
                 mapView.overlays.add(0, mapEventsOverlay)
+            } else {
+                // Si aucun mode d'édition n'est actif, ajouter un gestionnaire pour le double-clic
+                val mapEventsReceiver = object : MapEventsReceiver {
+                    override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                        return false // Laisser passer les évènements de clic simple
+                    }
+
+                    override fun longPressHelper(p: GeoPoint?): Boolean {
+                        // Utiliser le longPress comme un double-clic pour afficher toutes les parcelles
+                        Log.d("ParcellesBox", "Double-clic détecté, centrage sur toutes les parcelles")
+                        centerOnAllParcelles()
+                        return true
+                    }
+                }
+                
+                val mapEventsOverlay = MapEventsOverlay(mapEventsReceiver)
+                mapView.overlays.add(0, mapEventsOverlay)
             }
             
             mapView.invalidate()
@@ -255,7 +409,10 @@ fun ParcellesBox(
             ) {
                 // Bouton mode polygone
                 IconButton(
-                    onClick = { viewModel.togglePolygonMode() },
+                    onClick = { 
+                        viewModel.togglePolygonMode()
+                        closeAllInfoWindows()
+                    },
                     modifier = Modifier
                         .size(40.dp)
                         .background(
@@ -274,7 +431,10 @@ fun ParcellesBox(
                 
                 // Bouton mode point unique
                 IconButton(
-                    onClick = { viewModel.togglePointMode() },
+                    onClick = { 
+                        viewModel.togglePointMode()
+                        closeAllInfoWindows()
+                    },
                     modifier = Modifier
                         .size(40.dp)
                         .background(
@@ -293,7 +453,10 @@ fun ParcellesBox(
             // Bouton d'ajout en bas à gauche qui apparaît uniquement lorsqu'un marqueur est présent
             if (markerPosition != null) {
                 IconButton(
-                    onClick = { showAddParcelleDialog = true },
+                    onClick = { 
+                        showAddParcelleDialog = true
+                        closeAllInfoWindows()
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(16.dp)
@@ -343,8 +506,12 @@ fun ParcellesBox(
                     ) { parcelle ->
                         ParcelleItem(
                             parcelle = parcelle,
-                            onEdit = { onNavigateToForm("parcelle_form/${parcelle.id}") },
-                            onDelete = { viewModel.setParcelleToDelete(parcelle) }
+                            onCardClick = { selectParcelleAndCenterMap(parcelle) },
+                            onEdit = { prepareEditForm(parcelle) },
+                            onDelete = { 
+                                parcelleToDelete = parcelle
+                                showDeleteConfirmDialog = true 
+                            }
                         )
                     }
                 }
@@ -380,6 +547,158 @@ fun ParcellesBox(
                 }
             }
         }
+    }
+    
+    // AlertDialog de confirmation de suppression
+    if (showDeleteConfirmDialog && parcelleToDelete != null) {
+        // Fermer toutes les infowindows avant d'afficher la boîte de dialogue
+        closeAllInfoWindows()
+        
+        AlertDialog(
+            onDismissRequest = { 
+                showDeleteConfirmDialog = false
+                parcelleToDelete = null
+            },
+            title = { Text("Confirmation de suppression") },
+            text = { 
+                Text(
+                    "Êtes-vous sûr de vouloir supprimer la parcelle \"${parcelleToDelete?.name}\" ?",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { 
+                        parcelleToDelete?.let { parcelle ->
+                            viewModel.setParcelleToDelete(parcelle)
+                            showDeleteConfirmDialog = false
+                            parcelleToDelete = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Supprimer")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { 
+                        showDeleteConfirmDialog = false
+                        parcelleToDelete = null
+                    }
+                ) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+    
+    // Dialog d'édition de parcelle
+    if (showEditParcelleDialog && parcelleToEdit != null) {
+        // Fermer toutes les infowindows avant d'afficher la boîte de dialogue
+        closeAllInfoWindows()
+        
+        AlertDialog(
+            onDismissRequest = { resetForm() },
+            title = { Text("Modifier la parcelle") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = parcelleName,
+                        onValueChange = { parcelleName = it },
+                        label = { Text("Nom") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    OutlinedTextField(
+                        value = parcelleSurface,
+                        onValueChange = { parcelleSurface = it },
+                        label = { Text("Surface (ha)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    OutlinedTextField(
+                        value = parcelleCepage,
+                        onValueChange = { parcelleCepage = it },
+                        label = { Text("Cépage") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    OutlinedTextField(
+                        value = parcelleTypeConduite,
+                        onValueChange = { parcelleTypeConduite = it },
+                        label = { Text("Type de conduite") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = parcelleLargeur,
+                            onValueChange = { parcelleLargeur = it },
+                            label = { Text("Largeur") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        
+                        OutlinedTextField(
+                            value = parcelleHauteur,
+                            onValueChange = { parcelleHauteur = it },
+                            label = { Text("Hauteur") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        parcelleToEdit?.let { oldParcelle ->
+                            // Créer une parcelle mise à jour avec les nouvelles données du formulaire
+                            val updatedParcelle = oldParcelle.copy(
+                                name = parcelleName,
+                                surface = parcelleSurface.toDoubleOrNull() ?: oldParcelle.surface,
+                                cepage = parcelleCepage,
+                                typeConduite = parcelleTypeConduite,
+                                largeur = parcelleLargeur.toDoubleOrNull() ?: oldParcelle.largeur,
+                                hauteur = parcelleHauteur.toDoubleOrNull() ?: oldParcelle.hauteur
+                            )
+                            
+                            // Mettre à jour la parcelle via le ViewModel
+                            viewModel.updateParcelle(updatedParcelle)
+                            
+                            // Réinitialiser le formulaire
+                            resetForm()
+                        }
+                    },
+                    enabled = isFormValid && parcelleToEdit != null
+                ) {
+                    Text("Mettre à jour")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { resetForm() }) {
+                    Text("Annuler")
+                }
+            }
+        )
     }
     
     // Dialog d'ajout de parcelle
@@ -494,46 +813,76 @@ fun ParcellesBox(
 @Composable
 private fun ParcelleItem(
     parcelle: Parcelle,
+    onCardClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onEdit() },
+            .height(56.dp)  // Hauteur fixe réduite
+            .clickable { onCardClick() },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
+            // Partie texte en une seule ligne
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = parcelle.name,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1
                 )
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
                 Text(
-                    text = "${parcelle.surface} ha - ${parcelle.cepage}",
+                    text = "•",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Text(
+                    text = "${parcelle.surface} ha - ${parcelle.cepage}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            Row {
-                IconButton(onClick = onEdit) {
+            
+            // Boutons d'action
+            Row(
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(32.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Modifier la parcelle",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
-                IconButton(onClick = onDelete) {
+                
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(32.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Supprimer la parcelle",

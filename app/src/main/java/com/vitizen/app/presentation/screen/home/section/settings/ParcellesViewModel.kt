@@ -178,16 +178,24 @@ class ParcellesViewModel @Inject constructor(
     private fun deleteParcelle(parcelle: Parcelle) {
         viewModelScope.launch {
             try {
-                parcelleRepository.deleteParcelle(parcelle)
+                // Mise à jour optimiste des états locaux
+                // Supprimer la parcelle de la liste locale
+                val updatedParcelles = _parcelles.value.toMutableList()
+                updatedParcelles.removeIf { it.id == parcelle.id }
+                _parcelles.value = updatedParcelles
                 
                 // Supprimer le marqueur permanent associé
                 val updatedMarkers = _permanentMarkers.value.toMutableMap()
                 updatedMarkers.remove(parcelle.id)
                 _permanentMarkers.value = updatedMarkers
                 
+                // Opération asynchrone dans le repository
+                parcelleRepository.deleteParcelle(parcelle)
+                
                 Log.d("ParcellesViewModel", "Parcelle supprimée avec succès")
             } catch (e: Exception) {
                 Log.e("ParcellesViewModel", "Erreur lors de la suppression de la parcelle", e)
+                // En cas d'erreur, le repository enverra une mise à jour avec les données correctes
             }
         }
     }
@@ -195,16 +203,31 @@ class ParcellesViewModel @Inject constructor(
     fun addParcelle(parcelle: Parcelle) {
         viewModelScope.launch {
             try {
-                parcelleRepository.addParcelle(parcelle)
+                // Mettre à jour immédiatement les états locaux avant l'opération asynchrone
+                // Ajouter le marqueur aux marqueurs permanents
+                val updatedMarkers = _permanentMarkers.value.toMutableMap()
+                updatedMarkers[parcelle.id] = GeoPoint(parcelle.latitude, parcelle.longitude)
+                _permanentMarkers.value = updatedMarkers
+                
+                // Ajouter temporairement la parcelle à la liste locale
+                val updatedParcelles = _parcelles.value.toMutableList()
+                updatedParcelles.add(parcelle)
+                _parcelles.value = updatedParcelles
                 
                 // Si nous sommes en mode point et qu'un marqueur existe, l'associer à la parcelle
                 if (_isPointMode.value && _markerPosition.value != null) {
                     finishPointMode(parcelle.id, _markerPosition.value!!)
                 }
                 
+                // Enregistrement asynchrone dans le repository
+                parcelleRepository.addParcelle(parcelle)
+                
                 Log.d("ParcellesViewModel", "Parcelle ajoutée avec succès")
             } catch (e: Exception) {
                 Log.e("ParcellesViewModel", "Erreur lors de l'ajout de la parcelle", e)
+                
+                // En cas d'erreur, annuler les mises à jour locales
+                // (le repository enverra une mise à jour avec les données correctes)
             }
         }
     }
@@ -212,16 +235,27 @@ class ParcellesViewModel @Inject constructor(
     fun updateParcelle(parcelle: Parcelle) {
         viewModelScope.launch {
             try {
-                parcelleRepository.updateParcelle(parcelle)
+                // Mise à jour optimiste des états locaux
+                // Mettre à jour la liste des parcelles
+                val currentParcelles = _parcelles.value.toMutableList()
+                val index = currentParcelles.indexOfFirst { it.id == parcelle.id }
+                if (index >= 0) {
+                    currentParcelles[index] = parcelle
+                    _parcelles.value = currentParcelles
+                }
                 
                 // Mettre à jour le marqueur permanent
                 val updatedMarkers = _permanentMarkers.value.toMutableMap()
                 updatedMarkers[parcelle.id] = GeoPoint(parcelle.latitude, parcelle.longitude)
                 _permanentMarkers.value = updatedMarkers
                 
+                // Opération asynchrone dans le repository
+                parcelleRepository.updateParcelle(parcelle)
+                
                 Log.d("ParcellesViewModel", "Parcelle mise à jour avec succès")
             } catch (e: Exception) {
                 Log.e("ParcellesViewModel", "Erreur lors de la mise à jour de la parcelle", e)
+                // En cas d'erreur, le repository enverra une mise à jour avec les données correctes
             }
         }
     }
