@@ -75,43 +75,39 @@ class ParcellesViewModel @Inject constructor(
 
     // Gestion des modes d'édition
     fun togglePointMode() {
-        val newPointModeValue = !_isPointMode.value
-        
-        // Si on active le mode point, on désactive le mode polygon
-        if (newPointModeValue) {
+        // Si on active le mode point, on désactive d'abord le mode polygon
+        if (!_isPointMode.value) {
             _isPolygonMode.value = false
-            // Réinitialiser le polygon
             _polygonPoints.value = emptyList()
             _isDrawingPolygon.value = false
         }
         
-        _isPointMode.value = newPointModeValue
+        // Basculer le mode point
+        _isPointMode.value = !_isPointMode.value
         
         // Réinitialiser les marqueurs lors du changement de mode
         clearMarkers()
         
-        Log.d("ParcellesViewModel", "Mode point unique: ${_isPointMode.value}")
+        Log.d("ParcellesViewModel", "Mode point unique: ${_isPointMode.value}, Mode polygon: ${_isPolygonMode.value}")
     }
     
     fun togglePolygonMode() {
-        val newPolygonModeValue = !_isPolygonMode.value
-        
-        // Si on active le mode polygon, on désactive le mode point
-        if (newPolygonModeValue) {
+        // Si on active le mode polygon, on désactive d'abord le mode point
+        if (!_isPolygonMode.value) {
             _isPointMode.value = false
-            // Réinitialiser les marqueurs du mode point
             clearMarkers()
         }
         
-        _isPolygonMode.value = newPolygonModeValue
+        // Basculer le mode polygon
+        _isPolygonMode.value = !_isPolygonMode.value
         
         // Réinitialiser le polygon si on désactive le mode
-        if (!newPolygonModeValue) {
+        if (!_isPolygonMode.value) {
             _polygonPoints.value = emptyList()
             _isDrawingPolygon.value = false
         }
         
-        Log.d("ParcellesViewModel", "Mode polygon ${if (_isPolygonMode.value) "activé" else "désactivé"}")
+        Log.d("ParcellesViewModel", "Mode polygon: ${_isPolygonMode.value}, Mode point unique: ${_isPointMode.value}")
     }
 
     // Gestion des marqueurs
@@ -294,80 +290,10 @@ class ParcellesViewModel @Inject constructor(
     fun addPolygonPoint(point: GeoPoint) {
         if (_isPolygonMode.value) {
             val currentPoints = _polygonPoints.value.toMutableList()
-            
-            // Si le polygon est fermé, insérer le point dans le segment le plus proche
-            if (currentPoints.size > 2 && currentPoints.first() == currentPoints.last()) {
-                // Trouver le segment le plus proche
-                var minDistance = Double.MAX_VALUE
-                var insertIndex = 1 // Par défaut, insérer après le premier point
-                
-                // Parcourir tous les segments (sauf le dernier qui ferme le polygon)
-                for (i in 0 until currentPoints.size - 1) {
-                    val segmentStart = currentPoints[i]
-                    val segmentEnd = currentPoints[i + 1]
-                    
-                    // Calculer la distance du point au segment
-                    val distance = distanceToSegment(point, segmentStart, segmentEnd)
-                    
-                    if (distance < minDistance) {
-                        minDistance = distance
-                        insertIndex = i + 1
-                    }
-                }
-                
-                // Insérer le point à l'index trouvé
-                currentPoints.add(insertIndex, point)
-                _polygonPoints.value = currentPoints
-                Log.d("ParcellesViewModel", "Point inséré dans le segment à l'index $insertIndex")
-            } else {
-                // Comportement normal : ajouter le point à la fin
-                currentPoints.add(point)
-                _polygonPoints.value = currentPoints
-                Log.d("ParcellesViewModel", "Point ajouté au polygon: ${point.latitude}, ${point.longitude}")
-            }
+            currentPoints.add(point)
+            _polygonPoints.value = currentPoints
+            Log.d("ParcellesViewModel", "Point ajouté au polygon: ${point.latitude}, ${point.longitude}")
         }
-    }
-
-    // Fonction utilitaire pour calculer la distance d'un point à un segment
-    private fun distanceToSegment(point: GeoPoint, segmentStart: GeoPoint, segmentEnd: GeoPoint): Double {
-        val x = point.latitude
-        val y = point.longitude
-        val x1 = segmentStart.latitude
-        val y1 = segmentStart.longitude
-        val x2 = segmentEnd.latitude
-        val y2 = segmentEnd.longitude
-
-        val A = x - x1
-        val B = y - y1
-        val C = x2 - x1
-        val D = y2 - y1
-
-        val dot = A * C + B * D
-        val lenSq = C * C + D * D
-        var param = -1.0
-
-        if (lenSq != 0.0) {
-            param = dot / lenSq
-        }
-
-        var xx: Double
-        var yy: Double
-
-        if (param < 0) {
-            xx = x1
-            yy = y1
-        } else if (param > 1) {
-            xx = x2
-            yy = y2
-        } else {
-            xx = x1 + param * C
-            yy = y1 + param * D
-        }
-
-        val dx = x - xx
-        val dy = y - yy
-
-        return Math.sqrt(dx * dx + dy * dy)
     }
 
     fun startDrawingPolygon() {
@@ -379,19 +305,9 @@ class ParcellesViewModel @Inject constructor(
     }
 
     fun finishDrawingPolygon() {
-        if (_isPolygonMode.value && _isDrawingPolygon.value && _polygonPoints.value.size > 2) {
-            // Ne pas ajouter le premier point à la fin, la fermeture se fera uniquement lors du clic sur le premier point
+        if (_isPolygonMode.value && _isDrawingPolygon.value) {
             _isDrawingPolygon.value = false
-            Log.d("ParcellesViewModel", "Polygon terminé avec ${_polygonPoints.value.size} points")
-        }
-    }
-
-    fun closePolygon() {
-        if (_polygonPoints.value.size > 2) {
-            // Ajouter le premier point à la fin uniquement lors de la fermeture explicite
-            val pointsWithClosure = _polygonPoints.value + _polygonPoints.value.first()
-            _polygonPoints.value = pointsWithClosure
-            Log.d("ParcellesViewModel", "Polygon fermé avec ${pointsWithClosure.size} points")
+            Log.d("ParcellesViewModel", "Fin du dessin du polygon avec ${_polygonPoints.value.size} points")
         }
     }
 
