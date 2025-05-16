@@ -40,6 +40,14 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import androidx.core.content.ContextCompat
 import com.vitizen.app.R
 import java.util.UUID
+import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import android.graphics.Color as AndroidColor
+import org.osmdroid.views.overlay.Polygon
 
 // Constante pour identifier le marqueur temporaire
 private const val TEMPORARY_MARKER_ID = "temp_marker"
@@ -130,6 +138,12 @@ fun ParcellesBox(
     val markerPosition by viewModel.markerPosition.collectAsState()
     val shouldClearMarkers by viewModel.shouldClearMarkers.collectAsState()
     val permanentMarkers by viewModel.permanentMarkers.collectAsState()
+    
+    // États pour le mode polygon
+    val polygonPoints by viewModel.polygonPoints.collectAsState()
+    val isDrawingPolygon by viewModel.isDrawingPolygon.collectAsState()
+    var polygonOverlay by remember { mutableStateOf<Any?>(null) }  // Peut être Polygon ou Polyline
+    var polygonMarkers by remember { mutableStateOf<List<Marker>>(emptyList()) }
     
     // Fonction pour sélectionner une parcelle au clic sur la card
     fun selectParcelleAndCenterMap(parcelle: Parcelle) {
@@ -324,6 +338,94 @@ fun ParcellesBox(
         }
     }
 
+    // Effet pour gérer l'affichage du polygon et ses marqueurs
+    LaunchedEffect(polygonPoints, mapView) {
+        try {
+            // Supprimer l'ancien overlay et ses marqueurs
+            polygonOverlay?.let { overlay ->
+                when (overlay) {
+                    is Polygon -> mapView.overlays.remove(overlay)
+                    is Polyline -> mapView.overlays.remove(overlay)
+                    else -> Log.w("ParcellesBox", "Type d'overlay inattendu: ${overlay.javaClass.simpleName}")
+                }
+            }
+            polygonMarkers.forEach { marker ->
+                mapView.overlays.remove(marker)
+            }
+            
+            if (polygonPoints.isNotEmpty()) {
+                // Vérifier si le polygon est fermé (premier point = dernier point)
+                val isClosed = polygonPoints.size > 2 && 
+                              polygonPoints.first() == polygonPoints.last()
+                
+                // Créer soit un Polygon (si fermé) soit une Polyline (si en cours de dessin)
+                val newOverlay = if (isClosed) {
+                    Polygon().apply {
+                        outlinePaint.color = AndroidColor.BLUE
+                        outlinePaint.strokeWidth = 5f
+                        fillPaint.color = AndroidColor.argb(50, 0, 0, 255)  // Bleu semi-transparent
+                        points = polygonPoints.toMutableList()
+                    }
+                } else {
+                    Polyline().apply {
+                        outlinePaint.color = AndroidColor.BLUE
+                        outlinePaint.strokeWidth = 5f
+                        setPoints(polygonPoints)
+                    }
+                }
+                
+                // Créer les marqueurs pour chaque point
+                val newMarkers = polygonPoints.mapIndexed { index, point ->
+                    Marker(mapView).apply {
+                        position = point
+                        // Utiliser une icône différente pour le premier point (point de fermeture)
+                        val icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)?.mutate()
+                        icon?.setTint(if (index == 0) AndroidColor.GREEN else AndroidColor.BLUE)
+                        this.icon = icon
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        title = if (index == 0 && polygonPoints.size > 2) "Cliquez pour fermer le polygon" else "Point ${index + 1}"
+                        snippet = "Lat: ${point.latitude}, Lon: ${point.longitude}"
+                        
+                        // Ajouter un gestionnaire de clic spécifique pour le premier point
+                        if (index == 0 && polygonPoints.size > 2 && !isClosed) {
+                            setOnMarkerClickListener { _, _ ->
+                                // Fermer le polygon uniquement si on clique sur le premier point
+                                viewModel.closePolygon()
+                                Log.d("ParcellesBox", "Polygon fermé en cliquant sur le premier point")
+                                true
+                            }
+                        }
+                    }
+                }
+                
+                // Ajouter l'overlay et les marqueurs à la carte
+                mapView.overlays.add(newOverlay)
+                newMarkers.forEach { marker ->
+                    mapView.overlays.add(marker)
+                }
+                
+                polygonOverlay = newOverlay
+                polygonMarkers = newMarkers
+                mapView.invalidate()
+                
+                Log.d("ParcellesBox", "Overlay mis à jour avec ${polygonPoints.size} points et marqueurs (${if (isClosed) "fermé" else "ouvert"})")
+            }
+        } catch (e: Exception) {
+            Log.e("ParcellesBox", "Erreur lors de la mise à jour de l'overlay", e)
+        }
+    }
+
+    // Effet pour nettoyer les marqueurs lors de la désactivation du mode polygon
+    LaunchedEffect(isPolygonMode) {
+        if (!isPolygonMode) {
+            polygonMarkers.forEach { marker ->
+                mapView.overlays.remove(marker)
+            }
+            polygonMarkers = emptyList()
+            mapView.invalidate()
+        }
+    }
+
     // Effet pour gérer les événements de clic sur la carte selon le mode actif
     LaunchedEffect(isPointMode, isPolygonMode, mapView) {
         try {
@@ -340,24 +442,41 @@ fun ParcellesBox(
                 val mapEventsReceiver = object : MapEventsReceiver {
                     override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
                         p?.let { geoPoint ->
-                            // Déléguer la gestion du clic au ViewModel
-                            if (isPointMode) {
-                                viewModel.setMarkerPosition(geoPoint)
-                            } else if (isPolygonMode) {
-                                // Pour une future implémentation
+                            when {
+                                isPointMode -> {
+                                    // Mode point : positionner le marqueur
+                                    viewModel.setMarkerPosition(geoPoint)
+                                    Log.d("ParcellesBox", "Point ajouté en mode point unique")
+                                }
+                                isPolygonMode && isDrawingPolygon -> {
+                                    // Mode polygon : ajouter un point au polygon
+                                    viewModel.addPolygonPoint(geoPoint)
+                                    Log.d("ParcellesBox", "Point ajouté au polygon: ${geoPoint.latitude}, ${geoPoint.longitude}")
+                                }
+                                else -> {
+                                    // Aucun mode actif ou polygon déjà fermé
+                                    Log.d("ParcellesBox", "Clic ignoré : ${if (!isDrawingPolygon) "polygon déjà fermé" else "aucun mode actif"}")
+                                }
                             }
                         }
                         return true
                     }
 
                     override fun longPressHelper(p: GeoPoint?): Boolean {
-                        return false // Non utilisé
+                        // Désactiver la fermeture par long press
+                        return false
                     }
                 }
                 
                 // Ajouter l'overlay d'événements à la carte (index 0 pour priorité)
                 val mapEventsOverlay = MapEventsOverlay(mapEventsReceiver)
                 mapView.overlays.add(0, mapEventsOverlay)
+                
+                // Si on active le mode polygon, démarrer le dessin
+                if (isPolygonMode) {
+                    viewModel.startDrawingPolygon()
+                    Log.d("ParcellesBox", "Mode polygon activé, démarrage du dessin")
+                }
             } else {
                 // Si aucun mode d'édition n'est actif, ajouter un gestionnaire pour le double-clic
                 val mapEventsReceiver = object : MapEventsReceiver {
