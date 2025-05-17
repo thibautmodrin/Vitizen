@@ -46,6 +46,11 @@ import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
 import androidx.compose.ui.graphics.Color
+import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.infowindow.InfoWindow
+import android.graphics.Color as AndroidColor
+import androidx.compose.ui.graphics.Color as ComposeColor
+import java.util.ArrayList
 
 // Constante pour identifier le marqueur temporaire
 private const val TEMPORARY_MARKER_ID = "temp_marker"
@@ -296,7 +301,7 @@ fun ParcellesBox(
             permanentMarkers.forEach { (parcelleId, position) ->
                 // Créer un drawable pour chaque marqueur pour éviter le partage de référence
                 val grayIcon = ContextCompat.getDrawable(context, R.drawable.ic_marker)?.mutate()
-                grayIcon?.setTint(android.graphics.Color.GRAY)
+                grayIcon?.setTint(AndroidColor.GRAY)
                 
                 // Trouver la parcelle correspondante
                 val parcelle = parcelles.find { it.id == parcelleId }
@@ -336,6 +341,50 @@ fun ParcellesBox(
         }
     }
 
+    // Effet pour gérer le mode polygon
+    LaunchedEffect(isPolygonMode, polygonPoints, mapView) {
+        try {
+            // Supprimer les overlays précédents liés au polygon
+            mapView.overlays.removeAll { overlay ->
+                overlay is Polyline || (overlay is Marker && overlay.id?.startsWith("polygon_") == true)
+            }
+
+            if (isPolygonMode && polygonPoints.isNotEmpty()) {
+                // Créer une nouvelle instance de Polyline avec les points
+                val polyline = Polyline(mapView).apply {
+                    outlinePaint.color = AndroidColor.BLUE
+                    outlinePaint.strokeWidth = 5f
+                    setPoints(ArrayList(polygonPoints))
+                }
+                mapView.overlays.add(polyline)
+
+                // Ajouter des marqueurs pour chaque point
+                polygonPoints.forEachIndexed { index, point ->
+                    val marker = Marker(mapView).apply {
+                        id = "polygon_$index"
+                        position = point
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        
+                        // Personnaliser l'apparence du marqueur
+                        val icon = ContextCompat.getDrawable(context, R.drawable.ic_marker)?.mutate()
+                        // Premier point en vert, les autres en bleu
+                        icon?.setTint(if (index == 0) AndroidColor.GREEN else AndroidColor.BLUE)
+                        this.icon = icon
+                        
+                        // Ajouter un numéro au marqueur
+                        title = "${index + 1}"
+                        snippet = "Point du polygon"
+                    }
+                    mapView.overlays.add(marker)
+                }
+            }
+            
+            mapView.invalidate()
+        } catch (e: Exception) {
+            Log.e("ParcellesBox", "Erreur lors de la gestion du polygon", e)
+        }
+    }
+
     // Effet pour gérer les événements de clic sur la carte selon le mode actif
     LaunchedEffect(isPointMode, isPolygonMode, mapView) {
         try {
@@ -352,22 +401,26 @@ fun ParcellesBox(
                 val mapEventsReceiver = object : MapEventsReceiver {
                     override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
                         p?.let { geoPoint ->
-                            // Déléguer la gestion du clic au ViewModel
                             if (isPointMode) {
                                 viewModel.setMarkerPosition(geoPoint)
                             } else if (isPolygonMode) {
-                                // Pour une future implémentation
+                                viewModel.addPolygonPoint(geoPoint)
+                                Log.d("ParcellesBox", "Point ajouté au polygon: ${geoPoint.latitude}, ${geoPoint.longitude}")
                             }
                         }
                         return true
                     }
 
                     override fun longPressHelper(p: GeoPoint?): Boolean {
-                        return false // Non utilisé
+                        if (isPolygonMode) {
+                            // Utiliser le long press pour terminer le polygon
+                            viewModel.finishDrawingPolygon()
+                            return true
+                        }
+                        return false
                     }
                 }
                 
-                // Ajouter l'overlay d'événements à la carte (index 0 pour priorité)
                 val mapEventsOverlay = MapEventsOverlay(mapEventsReceiver)
                 mapView.overlays.add(0, mapEventsOverlay)
             } else {
@@ -391,7 +444,7 @@ fun ParcellesBox(
             
             mapView.invalidate()
         } catch (e: Exception) {
-            Log.e("ParcellesBox", "Erreur lors de la gestion des événements: ${e.message}")
+            Log.e("ParcellesBox", "Erreur lors de la gestion des événements", e)
         }
     }
 

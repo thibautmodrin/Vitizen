@@ -11,3 +11,4 @@ Le code doit toujours respecter la structure MVVM et cleancode.
 Assure toi que les état sont bien gérer en stateflow et harmonisé dans tous les fichiers.
 Verifie si il n'y a pas du code inutile après la nouvelle implémentations ou du code redondants.
 Les bonnes pratiques doivent toujours etre utilisé.
+Avant de corriger le code explique moi quel est le problème et ce que tu vas faire .
