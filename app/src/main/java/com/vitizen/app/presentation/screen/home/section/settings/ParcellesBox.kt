@@ -445,14 +445,9 @@ fun ParcellesBox(
                                 val currentPoints = viewModel.polygonPoints.value
                                 Log.d("ParcellesBox", "Clic sur la carte en mode polygon - Points actuels: ${currentPoints.size}")
                                 
-                                // Vérifier si on peut ajouter un point
-                                if (currentPoints.size <= 2 || 
-                                    (currentPoints.size > 2 && currentPoints.first() != currentPoints.last())) {
-                                    Log.d("ParcellesBox", "Ajout d'un point au polygon: ${geoPoint.latitude}, ${geoPoint.longitude}")
-                                    viewModel.addPolygonPoint(geoPoint)
-                                } else {
-                                    Log.d("ParcellesBox", "Polygon déjà fermé, impossible d'ajouter un point")
-                                }
+                                // Toujours permettre l'ajout de points, même si le polygon est fermé
+                                Log.d("ParcellesBox", "Ajout d'un point au polygon: ${geoPoint.latitude}, ${geoPoint.longitude}")
+                                viewModel.addPolygonPoint(geoPoint)
                             }
                         }
                         return true

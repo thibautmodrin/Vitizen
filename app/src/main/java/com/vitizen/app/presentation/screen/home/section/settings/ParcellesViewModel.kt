@@ -291,15 +291,88 @@ class ParcellesViewModel @Inject constructor(
         if (_isPolygonMode.value) {
             val currentPoints = _polygonPoints.value.toMutableList()
             
-            // Ajouter le point sans vérification de fermeture
-            currentPoints.add(point)
-            _polygonPoints.value = currentPoints
+            // Vérifier si le polygon est fermé
+            val isClosed = currentPoints.size > 2 && currentPoints.first() == currentPoints.last()
             
-            Log.d("ParcellesViewModel", "Point ajouté au polygon: ${point.latitude}, ${point.longitude}, " +
-                "nombre total de points: ${currentPoints.size}")
+            if (isClosed) {
+                // Trouver le segment le plus proche
+                var minDistance = Double.MAX_VALUE
+                var insertIndex = -1
+                
+                // Parcourir tous les segments (en excluant le dernier point qui est identique au premier)
+                for (i in 0 until currentPoints.size - 1) {
+                    val segmentStart = currentPoints[i]
+                    val segmentEnd = currentPoints[i + 1]
+                    
+                    // Calculer la distance du point au segment
+                    val distance = distanceToSegment(point, segmentStart, segmentEnd)
+                    
+                    if (distance < minDistance) {
+                        minDistance = distance
+                        insertIndex = i + 1
+                    }
+                }
+                
+                if (insertIndex != -1) {
+                    // Insérer le point dans le segment le plus proche
+                    currentPoints.add(insertIndex, point)
+                    // Mettre à jour le dernier point pour maintenir la fermeture
+                    currentPoints[currentPoints.size - 1] = currentPoints[0]
+                    _polygonPoints.value = currentPoints
+                    Log.d("ParcellesViewModel", "Point inséré dans le segment à l'index $insertIndex")
+                }
+            } else {
+                // Comportement normal pour un polygon non fermé
+                currentPoints.add(point)
+                _polygonPoints.value = currentPoints
+                Log.d("ParcellesViewModel", "Point ajouté au polygon: ${point.latitude}, ${point.longitude}, " +
+                    "nombre total de points: ${currentPoints.size}")
+            }
         } else {
             Log.d("ParcellesViewModel", "Mode polygon non actif, impossible d'ajouter un point")
         }
+    }
+
+    // Fonction utilitaire pour calculer la distance d'un point à un segment
+    private fun distanceToSegment(point: GeoPoint, segmentStart: GeoPoint, segmentEnd: GeoPoint): Double {
+        val x = point.latitude
+        val y = point.longitude
+        val x1 = segmentStart.latitude
+        val y1 = segmentStart.longitude
+        val x2 = segmentEnd.latitude
+        val y2 = segmentEnd.longitude
+
+        val A = x - x1
+        val B = y - y1
+        val C = x2 - x1
+        val D = y2 - y1
+
+        val dot = A * C + B * D
+        val lenSq = C * C + D * D
+        var param = -1.0
+
+        if (lenSq != 0.0) {
+            param = dot / lenSq
+        }
+
+        var xx: Double
+        var yy: Double
+
+        if (param < 0) {
+            xx = x1
+            yy = y1
+        } else if (param > 1) {
+            xx = x2
+            yy = y2
+        } else {
+            xx = x1 + param * C
+            yy = y1 + param * D
+        }
+
+        val dx = x - xx
+        val dy = y - yy
+
+        return Math.sqrt(dx * dx + dy * dy)
     }
 
     fun closePolygon() {
