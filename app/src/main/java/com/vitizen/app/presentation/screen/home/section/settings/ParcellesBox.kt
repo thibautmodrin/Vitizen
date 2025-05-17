@@ -396,17 +396,23 @@ fun ParcellesBox(
                         
                         // Ajouter un numéro au marqueur
                         title = "${index + 1}"
-                        snippet = if (index == 0 && polygonPoints.size > 2) "Cliquez pour fermer le polygon" else "Point du polygon"
+                        
+                        // Personnaliser le snippet selon le mode et le point
+                        val isClosed = polygonPoints.size > 2 && polygonPoints.first() == polygonPoints.last()
+                        snippet = when {
+                            index == 0 && polygonPoints.size > 2 && !isClosed -> "Cliquez pour fermer le polygon"
+                            isClosed && index == polygonPoints.size - 1 -> "Point de fermeture"
+                            else -> "Cliquez pour supprimer ce point"
+                        }
                         
                         // Gérer le clic sur le marqueur
                         setOnMarkerClickListener { marker, _ ->
                             Log.d("ParcellesBox", "Clic sur le marqueur $index")
-                            if (isPolygonMode && index == 0 && polygonPoints.size > 2) {
-                                Log.d("ParcellesBox", "Tentative de fermeture du polygon")
-                                viewModel.closePolygon()
+                            if (isPolygonMode) {
+                                // Déléguer la logique au ViewModel
+                                viewModel.handlePolygonPointClick(index)
                                 true
                             } else {
-                                Log.d("ParcellesBox", "Clic sur marqueur ignoré - index: $index, taille: ${polygonPoints.size}")
                                 false
                             }
                         }

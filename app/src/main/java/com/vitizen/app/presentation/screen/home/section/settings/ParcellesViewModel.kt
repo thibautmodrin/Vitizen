@@ -412,4 +412,134 @@ class ParcellesViewModel @Inject constructor(
         _isDrawingPolygon.value = false
         Log.d("ParcellesViewModel", "Polygon effacé")
     }
+
+    /**
+     * Supprime un point du polygon selon le mode actuel
+     * @param pointIndex Index du point à supprimer (optionnel, si non fourni supprime le dernier point)
+     */
+    fun deletePolygonPoint(pointIndex: Int? = null) {
+        val currentPoints = _polygonPoints.value.toMutableList()
+        if (currentPoints.isEmpty()) {
+            Log.d("ParcellesViewModel", "deletePolygonPoint - Liste de points vide")
+            return
+        }
+
+        Log.d("ParcellesViewModel", "deletePolygonPoint - Début - Index à supprimer: $pointIndex")
+        Log.d("ParcellesViewModel", "deletePolygonPoint - Points avant suppression: ${currentPoints.map { "${it.latitude},${it.longitude}" }}")
+
+        val isClosed = currentPoints.size > 2 && currentPoints.first() == currentPoints.last()
+        Log.d("ParcellesViewModel", "deletePolygonPoint - État du polygon:")
+        Log.d("ParcellesViewModel", "- Nombre de points: ${currentPoints.size}")
+        Log.d("ParcellesViewModel", "- Premier point: ${currentPoints.first().latitude},${currentPoints.first().longitude}")
+        Log.d("ParcellesViewModel", "- Dernier point: ${currentPoints.last().latitude},${currentPoints.last().longitude}")
+        Log.d("ParcellesViewModel", "- isClosed: $isClosed")
+
+        if (isClosed) {
+            Log.d("ParcellesViewModel", "deletePolygonPoint - Mode fermé détecté")
+            if (currentPoints.size == 4) { // 3 points + point de fermeture
+                Log.d("ParcellesViewModel", "deletePolygonPoint - Polygon fermé de 3 points")
+                if (pointIndex != null) {
+                    when (pointIndex) {
+                        0, currentPoints.size - 1 -> {
+                            // Si on supprime le premier point ou le point de fermeture
+                            Log.d("ParcellesViewModel", "deletePolygonPoint - Suppression du premier/dernier point dans un polygon de 3 points")
+                            val newPoints = mutableListOf<GeoPoint>()
+                            newPoints.add(currentPoints[1])
+                            newPoints.add(currentPoints[2])
+                            _polygonPoints.value = newPoints
+                            Log.d("ParcellesViewModel", "deletePolygonPoint - Nouveaux points après suppression: ${newPoints.map { "${it.latitude},${it.longitude}" }}")
+                        }
+                        else -> {
+                            // Pour les autres points
+                            Log.d("ParcellesViewModel", "deletePolygonPoint - Suppression du point $pointIndex dans un polygon de 3 points")
+                            val newPoints = mutableListOf<GeoPoint>()
+                            newPoints.add(currentPoints[0])
+                            newPoints.add(currentPoints[if (pointIndex == 1) 2 else 1])
+                            _polygonPoints.value = newPoints
+                            Log.d("ParcellesViewModel", "deletePolygonPoint - Nouveaux points après suppression: ${newPoints.map { "${it.latitude},${it.longitude}" }}")
+                        }
+                    }
+                }
+            } else if (currentPoints.size > 4) {
+                Log.d("ParcellesViewModel", "deletePolygonPoint - Polygon fermé avec plus de 3 points")
+                if (pointIndex != null) {
+                    if (pointIndex == 0 || pointIndex == currentPoints.size - 1) {
+                        // Si on supprime le premier point ou le point de fermeture
+                        Log.d("ParcellesViewModel", "deletePolygonPoint - Suppression du premier/dernier point dans un polygon fermé")
+                        currentPoints.removeAt(0)
+                        currentPoints.removeAt(currentPoints.size - 1)
+                        currentPoints.add(currentPoints[0])
+                        _polygonPoints.value = currentPoints
+                        Log.d("ParcellesViewModel", "deletePolygonPoint - Nouveaux points après suppression: ${currentPoints.map { "${it.latitude},${it.longitude}" }}")
+                    } else {
+                        // Pour les autres points
+                        Log.d("ParcellesViewModel", "deletePolygonPoint - Suppression du point $pointIndex dans un polygon fermé")
+                        currentPoints.removeAt(pointIndex)
+                        currentPoints[currentPoints.size - 1] = currentPoints[0]
+                        _polygonPoints.value = currentPoints
+                        Log.d("ParcellesViewModel", "deletePolygonPoint - Nouveaux points après suppression: ${currentPoints.map { "${it.latitude},${it.longitude}" }}")
+                    }
+                }
+            }
+        } else {
+            Log.d("ParcellesViewModel", "deletePolygonPoint - Mode ouvert détecté")
+            if (pointIndex != null && pointIndex < currentPoints.size) {
+                Log.d("ParcellesViewModel", "deletePolygonPoint - Suppression du point $pointIndex en mode ouvert")
+                currentPoints.removeAt(pointIndex)
+            } else {
+                Log.d("ParcellesViewModel", "deletePolygonPoint - Suppression du dernier point en mode ouvert")
+                currentPoints.removeAt(currentPoints.size - 1)
+            }
+            _polygonPoints.value = currentPoints
+            Log.d("ParcellesViewModel", "deletePolygonPoint - Nouveaux points après suppression: ${currentPoints.map { "${it.latitude},${it.longitude}" }}")
+        }
+        Log.d("ParcellesViewModel", "deletePolygonPoint - Fin")
+    }
+
+    /**
+     * Gère le clic sur un point du polygon
+     * @param pointIndex Index du point cliqué
+     */
+    fun handlePolygonPointClick(pointIndex: Int) {
+        val currentPoints = _polygonPoints.value
+        if (currentPoints.isEmpty()) {
+            Log.d("ParcellesViewModel", "handlePolygonPointClick - Liste de points vide")
+            return
+        }
+
+        Log.d("ParcellesViewModel", "handlePolygonPointClick - Début - Point cliqué: $pointIndex")
+        Log.d("ParcellesViewModel", "handlePolygonPointClick - Points actuels: ${currentPoints.map { "${it.latitude},${it.longitude}" }}")
+        
+        // Vérifier si le polygon est fermé en comparant le premier et le dernier point
+        val isClosed = currentPoints.size > 2 && currentPoints.first() == currentPoints.last()
+        val isFirstPoint = pointIndex == 0
+        val isLastPoint = pointIndex == currentPoints.size - 1
+        
+        Log.d("ParcellesViewModel", "handlePolygonPointClick - État du polygon:")
+        Log.d("ParcellesViewModel", "- Nombre de points: ${currentPoints.size}")
+        Log.d("ParcellesViewModel", "- Premier point: ${currentPoints.first().latitude},${currentPoints.first().longitude}")
+        Log.d("ParcellesViewModel", "- Dernier point: ${currentPoints.last().latitude},${currentPoints.last().longitude}")
+        Log.d("ParcellesViewModel", "- isClosed: $isClosed")
+        Log.d("ParcellesViewModel", "- isFirstPoint: $isFirstPoint")
+        Log.d("ParcellesViewModel", "- isLastPoint: $isLastPoint")
+
+        when {
+            // Si le polygon est fermé, on supprime toujours le point cliqué
+            isClosed -> {
+                Log.d("ParcellesViewModel", "handlePolygonPointClick - Mode fermé détecté, suppression du point $pointIndex")
+                deletePolygonPoint(pointIndex)
+            }
+            // Si on clique sur le premier point en mode ouvert avec plus de 2 points
+            isFirstPoint && currentPoints.size > 2 -> {
+                Log.d("ParcellesViewModel", "handlePolygonPointClick - Tentative de fermeture du polygon")
+                closePolygon()
+            }
+            // Pour tous les autres cas en mode ouvert
+            else -> {
+                Log.d("ParcellesViewModel", "handlePolygonPointClick - Mode ouvert, suppression du point $pointIndex")
+                deletePolygonPoint(pointIndex)
+            }
+        }
+        Log.d("ParcellesViewModel", "handlePolygonPointClick - Fin")
+    }
 } 
