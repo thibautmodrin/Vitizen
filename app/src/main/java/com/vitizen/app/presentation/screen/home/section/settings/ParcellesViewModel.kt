@@ -290,9 +290,32 @@ class ParcellesViewModel @Inject constructor(
     fun addPolygonPoint(point: GeoPoint) {
         if (_isPolygonMode.value) {
             val currentPoints = _polygonPoints.value.toMutableList()
+            
+            // Ajouter le point sans vérification de fermeture
             currentPoints.add(point)
             _polygonPoints.value = currentPoints
-            Log.d("ParcellesViewModel", "Point ajouté au polygon: ${point.latitude}, ${point.longitude}")
+            
+            Log.d("ParcellesViewModel", "Point ajouté au polygon: ${point.latitude}, ${point.longitude}, " +
+                "nombre total de points: ${currentPoints.size}")
+        } else {
+            Log.d("ParcellesViewModel", "Mode polygon non actif, impossible d'ajouter un point")
+        }
+    }
+
+    fun closePolygon() {
+        if (_isPolygonMode.value && _polygonPoints.value.size > 2) {
+            val currentPoints = _polygonPoints.value.toMutableList()
+            // Vérifier si le polygon n'est pas déjà fermé
+            if (currentPoints.first() != currentPoints.last()) {
+                // Ajouter le premier point à la fin pour fermer le polygon
+                currentPoints.add(currentPoints.first())
+                _polygonPoints.value = currentPoints
+                Log.d("ParcellesViewModel", "Polygon fermé avec ${currentPoints.size} points")
+            } else {
+                Log.d("ParcellesViewModel", "Polygon déjà fermé")
+            }
+        } else {
+            Log.d("ParcellesViewModel", "Impossible de fermer le polygon - pas assez de points ou mode inactif")
         }
     }
 
